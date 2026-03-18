@@ -1,0 +1,181 @@
+﻿@page "/espaco-dela"
+@using MinhaVidaDashboard.Models
+@using System.Globalization
+@inject IHttpClientFactory ClientFactory
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    @* CABEÇALHO COM SELETOR DE MÊS *@
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-6">
+        <MudText Typo="Typo.h4" Color="Color.Secondary">Espaço dela</MudText>
+        <MudSpacer />
+        <MudSelect T="int" Label="Mês de Referência" @bind-Value="mesSelecionado" Variant="Variant.Outlined" Style="width:200px" AnchorOrigin="Origin.BottomCenter">
+            <MudSelectItem T="int" Value="1">Janeiro</MudSelectItem>
+            <MudSelectItem T="int" Value="2">Fevereiro</MudSelectItem>
+            <MudSelectItem T="int" Value="3">Março</MudSelectItem>
+            <MudSelectItem T="int" Value="4">Abril</MudSelectItem>
+            <MudSelectItem T="int" Value="5">Maio</MudSelectItem>
+            <MudSelectItem T="int" Value="6">Junho</MudSelectItem>
+            <MudSelectItem T="int" Value="7">Julho</MudSelectItem>
+            <MudSelectItem T="int" Value="8">Agosto</MudSelectItem>
+            <MudSelectItem T="int" Value="9">Setembro</MudSelectItem>
+            <MudSelectItem T="int" Value="10">Outubro</MudSelectItem>
+            <MudSelectItem T="int" Value="11">Novembro</MudSelectItem>
+            <MudSelectItem T="int" Value="12">Dezembro</MudSelectItem>
+        </MudSelect>
+    </MudStack>
+
+    @* ABAS INVERTIDAS: PESSOAL PRIMEIRO *@
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" ChildContentClass="pa-6" Color="Color.Secondary">
+        
+        @* --- ABA 1: VIDA PESSOAL --- *@
+        <MudTabPanel Text="Vida Pessoal 🌸" Icon="@Icons.Material.Filled.Favorite">
+            <MudAlert Severity="Severity.Normal" Variant="Variant.Outlined" Class="mb-4">
+                Gastos pessoais e lazer (@CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(mesSelecionado)).
+            </MudAlert>
+            
+            <MudTable Items="@transacoesDela.Where(t => t.Data.Month == mesSelecionado && t.EhPessoal == true)" Hover="true" Dense="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Data</MudTh>
+                    <MudTh>Descrição</MudTh>
+                    <MudTh>Valor</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Data.ToShortDateString()</MudTd>
+                    <MudTd>@context.Descricao</MudTd>
+                    @* Lógica de cor dinâmica: Verde para Entrada, Vermelho para Saída *@
+                    <MudTd Style="@(context.Tipo == "Entrada" ? "color:#2e7d32; font-weight:bold" : "color:#d32f2f; font-weight:bold")">
+                        @((context.Tipo == "Saída" && context.Valor > 0 ? -context.Valor : context.Valor).ToString("C"))
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>Nenhum gasto pessoal lançado este mês.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudTabPanel>
+
+        @* --- ABA 2: STUDIO (NEGÓCIO) --- *@
+        <MudTabPanel Text="Secret Studio ✨" Icon="@Icons.Material.Filled.Store">
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
+                Faturamento e despesas exclusivas do Secret Studio.
+            </MudAlert>
+            
+            <MudTable Items="@transacoesDela.Where(t => t.Data.Month == mesSelecionado && t.EhPessoal == false)" Hover="true" Dense="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Data</MudTh>
+                    <MudTh>Descrição</MudTh>
+                    <MudTh>Valor</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Data.ToShortDateString()</MudTd>
+                    <MudTd>@context.Descricao</MudTd>
+                    <MudTd Style="@(context.Tipo == "Entrada" ? "color:#2e7d32; font-weight:bold" : "color:#d32f2f; font-weight:bold")">
+                        @((context.Tipo == "Saída" && context.Valor > 0 ? -context.Valor : context.Valor).ToString("C"))
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>Nenhum lançamento do Studio para este mês.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudTabPanel>
+
+    </MudTabs>
+
+    @* FORMULÁRIO DE LANÇAMENTO *@
+    <MudPaper Class="pa-6 mt-6" Elevation="4" Style="border-radius: 12px;">
+        <MudGrid>
+            <MudItem xs="12" sm="3">
+                <MudTextField @bind-Value="novaTransacao.Descricao" Label="Descrição" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="2">
+                <MudNumericField @bind-Value="novaTransacao.Valor" Label="Valor" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="2">
+                <MudSelect @bind-Value="novaTransacao.Tipo" Label="Tipo" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem Value="@("Saída")">Saída (Gasto)</MudSelectItem>
+                    <MudSelectItem Value="@("Entrada")">Entrada (Ganho)</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="3" Class="d-flex align-center">
+                <MudSwitch @bind-Value="novaTransacao.EhPessoal" Color="Color.Secondary" 
+                           Label="@(novaTransacao.EhPessoal ? "Destino: Pessoal 🏠" : "Destino: Studio 💄")" />
+            </MudItem>
+            <MudItem xs="12" sm="2" Class="d-flex align-center">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="Salvar" Disabled="@processando">
+                    @if (processando) {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    } else {
+                        <span>Lançar</span>
+                    }
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<Transacao> transacoesDela = new();
+    // Inicializado com EhPessoal = true para combinar com a primeira aba
+    private Transacao novaTransacao = new() { Responsavel = "Namorada", EhPessoal = true, Data = DateTime.Now };
+    private int mesSelecionado = DateTime.Now.Month;
+    private bool processando = false;
+
+    protected override async Task OnInitializedAsync() => await Carregar();
+
+    private async Task Carregar()
+    {
+        try {
+            var client = ClientFactory.CreateClient("ClientesAPI");
+            transacoesDela = new List<Transacao>(); // Limpa para forçar o refresh
+            var resultado = await client.GetFromJsonAsync<List<Transacao>>("api/transacoes/Namorada");
+            if (resultado != null) transacoesDela = resultado;
+            StateHasChanged();
+        } catch (Exception) {
+            Snackbar.Add("Erro ao carregar dados", Severity.Error);
+        }
+    }
+
+    private async Task Salvar()
+    {
+        if (string.IsNullOrWhiteSpace(novaTransacao.Descricao) || novaTransacao.Valor == 0) return;
+
+        processando = true;
+        try
+        {
+            var client = ClientFactory.CreateClient("ClientesAPI");
+        
+            // Garante que o valor seja positivo para Entradas e negativo para Saídas no Banco
+            if (novaTransacao.Tipo == "Saída")
+                novaTransacao.Valor = -Math.Abs(novaTransacao.Valor);
+            else
+                novaTransacao.Valor = Math.Abs(novaTransacao.Valor);
+
+            // Ajusta a data para o mês selecionado
+            novaTransacao.Data = new DateTime(DateTime.Now.Year, mesSelecionado, 1);
+        
+            var response = await client.PostAsJsonAsync("api/transacoes", novaTransacao);
+        
+            if (response.IsSuccessStatusCode)
+            {
+                bool estadoAnterior = novaTransacao.EhPessoal;
+                novaTransacao = new Transacao
+                {
+                    Responsavel = "Namorada",
+                    EhPessoal = estadoAnterior,
+                    Data = DateTime.Now,
+                    Tipo = "Saída" // Reseta para o padrão
+                };
+                await Carregar();
+                Snackbar.Add("Lançamento realizado! 💎", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao salvar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            processando = false;
+        }
+    }
+}

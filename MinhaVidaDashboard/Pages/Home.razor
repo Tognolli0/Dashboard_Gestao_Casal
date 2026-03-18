@@ -1,0 +1,581 @@
+﻿@page "/"
+@using System.Globalization
+@using MudBlazor
+@using MinhaVidaDashboard.Models
+@inject IHttpClientFactory ClientFactory
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Dashboard Consolidado ❤️</PageTitle>
+
+<style>
+    .grafico-foco .mud-chart.mud-chart-bar {
+        height: 550px !important;
+        width: 100% !important;
+    }
+    .grafico-foco .mud-chart-container svg {
+        height: 500px !important;
+        width: 100% !important;
+        preserveAspectRatio: none !important;
+    }
+    .mud-chart-serie:hover {
+        filter: contrast(1.2);
+        cursor: pointer;
+    }
+</style>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
+    
+    @* --- CARDS DE RESUMO --- *@
+    <MudGrid Class="mb-8">
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-6 d-flex flex-column align-center" Elevation="4" Style="border-radius: 20px; border-bottom: 6px solid #5C6BC0; background: #ffffff;">
+                <MudText Typo="Typo.overline" Style="font-weight: 700; color: #5C6BC0;">MEU PATRIMÔNIO</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight: 900; color: #3f51b5;">@((saldoEuPessoal + saldoEuBusiness).ToString("C"))</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-6 d-flex flex-column align-center" Elevation="4" Style="border-radius: 20px; border-bottom: 6px solid #E91E63; background: #ffffff;">
+                <MudText Typo="Typo.overline" Style="font-weight: 700; color: #E91E63;">PATRIMÔNIO DELA</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight: 900; color: #d81b60;">@((saldoDelaPessoal + saldoDelaBusiness).ToString("C"))</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-6 d-flex flex-column align-center" Elevation="8" Style="border-radius: 20px; background: linear-gradient(135deg, #f1f8e9 0%, #dcedc8 100%); border: 1px solid #aed581;">
+                <MudText Typo="Typo.overline" Style="font-weight: 700; color: #33691e;">TOTAL CONSOLIDADO</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight: 900; color: #1b5e20;">@totalPatrimonio.ToString("C")</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudTabs Elevation="4" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Primary" PanelClass="pa-8">
+        
+        @* --- ABA 1: VISÃO PATRIMONIAL --- *@
+        <MudTabPanel Text="Visão Patrimonial" Icon="@Icons.Material.Filled.StackedBarChart">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudPaper Class="pa-8" Elevation="4" Style="border-radius: 24px;">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-8">
+                            <MudText Typo="Typo.h5" Color="Color.Primary" Style="font-weight: 800;">
+                                <MudIcon Icon="@Icons.Material.Filled.Home" Class="mr-2 mb-n1" />
+                                Vida Pessoal & Reserva Conjunta
+                            </MudText>
+                            <div style="background: #e8f5e9; padding: 10px 20px; border-radius: 12px; border: 1px solid #4caf50;">
+                                <MudText Typo="Typo.h6" Color="Color.Success" Style="font-weight: 800;">
+                                    TOTAL: @((saldoEuPessoal + saldoDelaPessoal + saldoJuntos).ToString("C"))
+                                </MudText>
+                            </div>
+                        </MudStack>
+                        <div class="grafico-foco" style="width: 100%;">
+                            <MudChart T="double" ChartType="ChartType.Bar" Width="100%" Height="550px" ChartSeries="@SeriesPessoal" ChartOptions="@_optionsPessoal" LegendPosition="Position.Bottom" />
+                        </div>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudPaper Class="pa-8" Elevation="4" Style="border-radius: 24px;">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-8">
+                            <MudText Typo="Typo.h5" Color="Color.Info" Style="font-weight: 800;">
+                                <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Class="mr-2 mb-n1" />
+                                Nossos Empreendimentos (Empresa & Studio)
+                            </MudText>
+                            <div style="background: #e3f2fd; padding: 10px 20px; border-radius: 12px; border: 1px solid #2196f3;">
+                                <MudText Typo="Typo.h6" Color="Color.Info" Style="font-weight: 800;">
+                                    TOTAL: @((saldoEuBusiness + saldoDelaBusiness).ToString("C"))
+                                </MudText>
+                            </div>
+                        </MudStack>
+                        <div class="grafico-foco" style="width: 100%;">
+                            <MudChart T="double" ChartType="ChartType.Bar" Width="100%" Height="550px" ChartSeries="@SeriesBusiness" ChartOptions="@_optionsBusiness" LegendPosition="Position.Bottom" />
+                        </div>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        @* --- ABA 2: METAS --- *@
+        <MudTabPanel Text="Metas e Sonhos" Icon="@Icons.Material.Filled.AutoAwesome">
+            <div class="pa-4">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-8">
+                    <MudText Typo="Typo.h5" Style="font-weight: 700;">Nossos Objetivos 🎯</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AbrirModalMeta" Size="Size.Large">Nova Meta</MudButton>
+                </MudStack>
+                <MudGrid>
+                    @foreach (var meta in ListaMetas)
+                    {
+                        var porcentagem = meta.ValorObjetivo > 0 ? (meta.ValorGuardado / meta.ValorObjetivo * 100) : 0;
+                        <MudItem xs="12" md="6">
+                            <MudPaper Class="pa-6" Elevation="3" Style="position: relative; border-radius: 20px;">
+                                <MudStack Row="true" Justify="Justify.FlexEnd" Style="position: absolute; top: 10px; right: 10px;">
+                                    @* BOTÃO DE APORTE *@
+                                    <MudIconButton Icon="@Icons.Material.Filled.AddCard" Color="Color.Success" OnClick="@(() => AbrirModalAporte(meta))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => ExcluirMeta(meta))" />
+                                </MudStack>
+
+                                <MudText Typo="Typo.h6">@meta.Titulo</MudText>
+                                <MudText Typo="Typo.h4" Color="Color.Primary" Style="font-weight: 900;" Class="my-2">
+                                    @porcentagem.ToString("F1")%
+                                </MudText>
+                                <MudProgressLinear Color="porcentagem >= 100 ? Color.Success : Color.Primary" Value="@meta.ValorGuardado" Max="@meta.ValorObjetivo" Size="Size.Large" Class="my-4" Rounded="true" Style="height: 12px;" />
+                                <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                    <MudText Typo="Typo.body1"><b>@meta.ValorGuardado.ToString("C")</b> guardados</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Objetivo: @meta.ValorObjetivo.ToString("C")</MudText>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </div>
+        </MudTabPanel>
+
+        @* --- ABA 3: BUCKET LIST --- *@
+        <MudTabPanel Text="Bucket List" Icon="@Icons.Material.Filled.Flight">
+            @* Código da Bucket List inalterado *@
+            <div class="pa-4">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-8">
+                    <MudText Typo="Typo.h5" Style="font-weight: 800;">Nossa Bucket List ✈️</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="AbrirModalDesejo" Size="Size.Large">Novo Item</MudButton>
+                </MudStack>
+                <MudGrid>
+                    @foreach (var item in ListaDesejos)
+                    {
+                        <MudItem xs="12" sm="6" md="4">
+                            <MudPaper Class="pa-4" Elevation="4" Style="@(item.Concluido ? "opacity: 0.6; border-left: 8px solid #4caf50;" : "border-left: 8px solid #ff4081;")">
+                                <MudStack Row="true" AlignItems="AlignItems.Center">
+                                    <MudIcon Icon="@GetIcon(item.Icone)" Color="@(item.Concluido ? Color.Success : Color.Secondary)" Size="Size.Large" />
+                                    <MudStack Spacing="0" Style="flex-grow: 1;">
+                                        <MudText Typo="Typo.h6">@item.Titulo</MudText>
+                                        @if (!item.Concluido)
+                                        {
+                                            var diasRestantes = (item.DataAlvo - DateTime.Now).Days;
+                                            <MudText Typo="Typo.caption" Color="Color.Info">
+                                                <b>@(diasRestantes > 0 ? diasRestantes : 0) dias</b> restantes!
+                                            </MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Success">Realizado em @item.DataAlvo.ToShortDateString()!</MudText>
+                                        }
+                                    </MudStack>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => ExcluirDesejo(item))" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </div>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@* --- MODAL META --- *@
+<MudDialog @bind-Visible="_modalAberto" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">Novo Sonho Financeiro</MudText></TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="novaMeta.Titulo" Label="Descrição" Variant="Variant.Outlined" Class="mb-4" />
+        <MudNumericField @bind-Value="novaMeta.ValorObjetivo" Label="Valor Alvo" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Flag" Class="mb-4" />
+        <MudNumericField @bind-Value="novaMeta.ValorGuardado" Label="Quanto já temos guardado?" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _modalAberto = false">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SalvarMeta">Salvar e Notificar 🚀</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* --- NOVO: MODAL DE APORTE --- *@
+<MudDialog @bind-Visible="_modalAporteAberto" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">Novo Aporte 💰</MudText></TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body1" Class="mb-4">Meta: <b>@metaSelecionada.Titulo</b></MudText>
+        <MudNumericField @bind-Value="valorAporte" Label="Valor para Guardar" Variant="Variant.Outlined" 
+                         Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _modalAporteAberto = false">Cancelar</MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="ConfirmarAporte">Confirmar e Enviar Zap 📲</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* --- MODAL BUCKET LIST --- *@
+<MudDialog @bind-Visible="_modalDesejoAberto" Options="_dialogOptions">
+    @* Código do modal Bucket List inalterado *@
+    <TitleContent><MudText Typo="Typo.h6">Novo Desejo da Lista</MudText></TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="novoDesejo.Titulo" Label="O que queremos fazer?" Variant="Variant.Outlined" Class="mb-4" />
+        <MudDatePicker Label="Data Alvo" @bind-Date="dataAlvoAux" Variant="Variant.Outlined" Class="mb-4" />
+        <MudSelect T="string" Label="Ícone" @bind-Value="novoDesejo.Icone" Variant="Variant.Outlined">
+            <MudSelectItem Value="@("Flight")">Viagem</MudSelectItem>
+            <MudSelectItem Value="@("Favorite")">Romance</MudSelectItem>
+            <MudSelectItem Value="@("Camera")">Foto/Evento</MudSelectItem>
+            <MudSelectItem Value="@("Hotel")">Hospedagem</MudSelectItem>
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _modalDesejoAberto = false">Cancelar</MudButton>
+        <MudButton Color="Color.Secondary" Variant="Variant.Filled" OnClick="SalvarDesejo">Adicionar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<div class="d-flex mt-4">
+    <MudFileUpload T="IBrowserFile" FilesChanged="ProcessarArquivo">
+        <ActivatorContent>
+            <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.CloudUpload">
+                Selecionar CSV
+            </MudButton>
+        </ActivatorContent>
+    </MudFileUpload>
+
+    <MudFileUpload T="IBrowserFile" FilesChanged="AnalisarComprovanteOCR" Accept=".jpg,.png,.jpeg" Class="ml-2">
+        <ActivatorContent>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CameraEnhance">
+                Tirar Foto / Galeria
+            </MudButton>
+        </ActivatorContent>
+    </MudFileUpload>
+</div>
+
+@* Mantenha o código do MudDialog (Confirmar Lançamento OCR) logo aqui abaixo *@
+
+@* --- NOVO: MODAL DE CONFIRMAÇÃO OCR --- *@
+<MudDialog @bind-Visible="_modalOCRAberto" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">Confirmar Lançamento OCR 📸</MudText></TitleContent>
+    <DialogContent>
+        <MudStack Spacing="4">
+            <MudDatePicker Label="Data do Comprovante" @bind-Date="dataOCRAux" Variant="Variant.Outlined" />
+            <MudTextField @bind-Value="transacaoOCR.Descricao" Label="Descrição" Variant="Variant.Outlined" />
+            <MudNumericField @bind-Value="transacaoOCR.Valor" Label="Valor Extraído" Variant="Variant.Outlined"
+                             Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" />
+            
+            <MudSelect T="string" Label="Quem pagou?" @bind-Value="transacaoOCR.Responsavel" Variant="Variant.Outlined">
+                <MudSelectItem Value="@("Eu")">Eu</MudSelectItem>
+                <MudSelectItem Value="@("Namorada")">Namorada</MudSelectItem>
+            </MudSelect>
+
+            <MudSwitch @bind-Value="transacaoOCR.EhPessoal" Color="Color.Primary" Label="Gasto Pessoal (se desmarcar, vai para Business)" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _modalOCRAberto = false">Cancelar</MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SalvarTransacaoOCR">Salvar no Banco ✅</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool _loading = true;
+    private bool _modalAberto;
+    private bool _modalDesejoAberto;
+    private bool _modalAporteAberto; // Controle do novo modal
+
+    private double saldoEuPessoal, saldoEuBusiness, saldoDelaPessoal, saldoDelaBusiness, saldoJuntos;
+    
+    private Meta novaMeta = new();
+    private Meta metaSelecionada = new(); // Para o aporte
+    private double valorAporte;           // Para o aporte
+    private List<Meta> ListaMetas = new();
+
+    private Desejo novoDesejo = new();
+    private List<Desejo> ListaDesejos = new();
+
+    private DateTime? dataAlvoAux { get => novoDesejo.DataAlvo; set => novoDesejo.DataAlvo = value ?? DateTime.Now; }
+
+    private readonly DialogOptions _dialogOptions = new() { FullWidth = true, MaxWidth = MaxWidth.Small };
+    private readonly ChartOptions _optionsPessoal = new() { ChartPalette = new[] { "#5C6BC0", "#E91E63", "#4CAF50" } };
+    private readonly ChartOptions _optionsBusiness = new() { ChartPalette = new[] { "#3F51B5", "#C2185B" } };
+
+    public List<ChartSeries<double>> SeriesPessoal = new();
+    public List<ChartSeries<double>> SeriesBusiness = new();
+    private double totalPatrimonio => saldoEuPessoal + saldoEuBusiness + saldoDelaPessoal + saldoDelaBusiness + saldoJuntos;
+
+    protected override async Task OnInitializedAsync() {
+        var culture = new CultureInfo("pt-BR");
+        CultureInfo.DefaultThreadCurrentCulture = culture;
+        CultureInfo.DefaultThreadCurrentUICulture = culture;
+        await CarregarTudo();
+    }
+
+    private async Task CarregarTudo() {
+        _loading = true;
+        try {
+            var client = ClientFactory.CreateClient("ClientesAPI");
+            var eu = await client.GetFromJsonAsync<List<Transacao>>("api/transacoes/Eu") ?? new();
+            var dela = await client.GetFromJsonAsync<List<Transacao>>("api/transacoes/Namorada") ?? new();
+            ListaMetas = await client.GetFromJsonAsync<List<Meta>>("api/metas") ?? new();
+            try { ListaDesejos = await client.GetFromJsonAsync<List<Desejo>>("api/desejos") ?? new(); } catch { ListaDesejos = new(); }
+
+            // 1. MEU PATRIMÔNIO (Soma Entradas - Soma Saídas)
+            saldoEuPessoal = (double)eu.Where(t => t.EhPessoal)
+                .Sum(t => t.Tipo == "Entrada" ? Math.Abs(t.Valor) : -Math.Abs(t.Valor));
+
+            saldoEuBusiness = (double)eu.Where(t => !t.EhPessoal)
+                .Sum(t => t.Tipo == "Entrada" ? Math.Abs(t.Valor) : -Math.Abs(t.Valor));
+
+            // 2. PATRIMÔNIO DELA
+            saldoDelaPessoal = (double)dela.Where(t => t.EhPessoal)
+                .Sum(t => t.Tipo == "Entrada" ? Math.Abs(t.Valor) : -Math.Abs(t.Valor));
+
+            saldoDelaBusiness = (double)dela.Where(t => !t.EhPessoal)
+                .Sum(t => t.Tipo == "Entrada" ? Math.Abs(t.Valor) : -Math.Abs(t.Valor));
+
+            // 3. SALDO JUNTOS (Aqui deve ser apenas o que está na "Reserva Conjunta", se houver)
+            // Se você quer que o Consolidado seja a soma de TUDO, ajuste a propriedade totalPatrimonio
+            saldoJuntos = 0; 
+
+            SeriesPessoal = new List<ChartSeries<double>> {
+                new() { Name = "Eu", Data = new double[] { Math.Max(0, saldoEuPessoal) } },
+                new() { Name = "Dela", Data = new double[] { Math.Max(0, saldoDelaPessoal) } },
+                new() { Name = "Conjunto", Data = new double[] { saldoJuntos } }
+            };
+
+            SeriesBusiness = new List<ChartSeries<double>> {
+                new() { Name = "Minha Empresa", Data = new double[] { Math.Max(0, saldoEuBusiness) } },
+                new() { Name = "Studio Dela", Data = new double[] { Math.Max(0, saldoDelaBusiness) } }
+            };
+            StateHasChanged();
+        } catch (Exception ex) { Console.WriteLine($"Erro: {ex.Message}"); } finally { _loading = false; }
+    }
+
+    // LOGICA DO APORTE
+    private void AbrirModalAporte(Meta meta) {
+        metaSelecionada = meta;
+        valorAporte = 0;
+        _modalAporteAberto = true;
+    }
+
+    private async Task ConfirmarAporte() {
+        if (valorAporte <= 0) return;
+        var client = ClientFactory.CreateClient("ClientesAPI");
+        
+        // Envia o double puro conforme configurado na sua API com [FromBody]
+        var response = await client.PostAsJsonAsync($"api/metas/{metaSelecionada.Id}/aporte", valorAporte);
+
+        if (response.IsSuccessStatusCode) {
+            _modalAporteAberto = false;
+            await CarregarTudo();
+            Snackbar.Add("Aporte realizado e notificado! 🚀", Severity.Success);
+        } else {
+            Snackbar.Add("Erro ao realizar aporte.", Severity.Error);
+        }
+    }
+
+    private void AbrirModalMeta() { novaMeta = new Meta(); _modalAberto = true; }
+    private async Task SalvarMeta() {
+        if (string.IsNullOrWhiteSpace(novaMeta.Titulo) || novaMeta.ValorObjetivo <= 0) return;
+        var client = ClientFactory.CreateClient("ClientesAPI");
+        var response = await client.PostAsJsonAsync("api/metas", novaMeta);
+        if (response.IsSuccessStatusCode) { _modalAberto = false; await CarregarTudo(); Snackbar.Add("Meta cadastrada!", Severity.Success); }
+    }
+    private async Task ExcluirMeta(Meta meta) {
+        var client = ClientFactory.CreateClient("ClientesAPI");
+        var response = await client.DeleteAsync($"api/metas/{meta.Id}");
+        if (response.IsSuccessStatusCode) { await CarregarTudo(); Snackbar.Add("Meta removida.", Severity.Info); }
+    }
+
+    private void AbrirModalDesejo() { novoDesejo = new Desejo { DataAlvo = DateTime.Now.AddMonths(1), Icone = "Flight" }; _modalDesejoAberto = true; }
+    private async Task SalvarDesejo() {
+        if (string.IsNullOrWhiteSpace(novoDesejo.Titulo)) return;
+        var client = ClientFactory.CreateClient("ClientesAPI");
+        var response = await client.PostAsJsonAsync("api/desejos", novoDesejo);
+        if (response.IsSuccessStatusCode) { _modalDesejoAberto = false; await CarregarTudo(); Snackbar.Add("Sonho salvo!", Severity.Success); }
+    }
+    private async Task ExcluirDesejo(Desejo desejo) {
+        var client = ClientFactory.CreateClient("ClientesAPI");
+        var response = await client.DeleteAsync($"api/desejos/{desejo.Id}");
+        if (response.IsSuccessStatusCode) { await CarregarTudo(); Snackbar.Add("Item removido!", Severity.Info); }
+    }
+
+    private string GetIcon(string nomeIcone) => nomeIcone switch {
+        "Flight" => Icons.Material.Filled.Flight,
+        "Favorite" => Icons.Material.Filled.Favorite,
+        "Camera" => Icons.Material.Filled.PhotoCamera,
+        "Hotel" => Icons.Material.Filled.Hotel,
+        _ => Icons.Material.Filled.Star
+    };
+
+    private async Task ProcessarArquivo(IBrowserFile file)
+    {
+        if (file == null)
+        {
+            Snackbar.Add("Arquivo removido.", Severity.Info);
+            return;
+        }
+        try
+        {
+            var client = ClientFactory.CreateClient("ClientesAPI");
+        
+            using var stream = file.OpenReadStream();
+            using var reader = new System.IO.StreamReader(stream);
+            var conteudo = await reader.ReadToEndAsync();
+
+            // Divide as linhas e pula o cabeçalho
+            var linhas = conteudo.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Skip(1);
+            var novasTransacoes = new List<Transacao>();
+            var culturaBR = new System.Globalization.CultureInfo("pt-BR");
+
+            foreach (var linha in linhas)
+            {
+                if (string.IsNullOrWhiteSpace(linha)) continue;
+
+                // Limpa aspas e identifica o separador do Excel
+                string linhaLimpa = linha.Replace("\"", "");
+                char separador = linhaLimpa.Contains(";") ? ';' : ',';
+                var colunas = linhaLimpa.Split(separador);
+
+                if (colunas.Length < 3) continue;
+
+                // Tratamento do valor decimal
+                string valorTexto = colunas[2].Replace("R$", "").Trim();
+                decimal valorFinal;
+                if (!decimal.TryParse(valorTexto.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out valorFinal))
+                {
+                    // Se falhar, tenta com a vírgula direta (padrão BR)
+                    decimal.TryParse(valorTexto, System.Globalization.NumberStyles.Any, culturaBR, out valorFinal);
+                }
+
+                // --- LÓGICA DE DISTRIBUIÇÃO ---
+                string descricao = colunas[1].Trim();
+                bool ehDoStudio = descricao.Contains("SECRETSTUDIO") ||
+                  descricao.Contains("MAQUIAGEM") ||
+                  descricao.Contains("STUDIO");
+
+                novasTransacoes.Add(new Transacao
+                {
+                    Data = DateTime.Parse(colunas[0].Trim(), culturaBR),
+                    Descricao = descricao,
+                    Valor = valorFinal,
+                
+                    // REGRA: Se for Studio, vai para a Namorada. Se não, vai para o Eu.
+                    Responsavel = ehDoStudio ? "Namorada" : "Eu",
+                
+                    // REGRA: Se for Studio, EhPessoal = false (Business). Se não, true.
+                    EhPessoal = !ehDoStudio,
+                
+                    Categoria = "Importação CSV",
+                    Tipo = valorFinal < 0 ? "Saída" : "Entrada"
+                });
+            }
+        
+            var response = await client.PostAsJsonAsync("api/transacoes/lote", novasTransacoes);
+        
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"{novasTransacoes.Count} transações distribuídas com sucesso! 🚀", Severity.Success);
+                await CarregarTudo(); // Atualiza os gráficos na hora
+            }
+            else
+            {
+                var erro = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Erro na API: {erro}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro no processamento: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private bool _modalOCRAberto;
+    private Transacao transacaoOCR = new();
+    private DateTime? dataOCRAux { get => transacaoOCR.Data; set => transacaoOCR.Data = value ?? DateTime.Now; }
+
+    // MÉTODO OCR CORRIGIDO E COM INTELIGÊNCIA
+    private async Task AnalisarComprovanteOCR(IBrowserFile file)
+    {
+        if (file == null)
+        {
+            Snackbar.Add("Arquivo removido.", Severity.Info);
+            return;
+        }
+        try
+        {
+            _loading = true;
+            var client = ClientFactory.CreateClient("ClientesAPI");
+            
+            using var content = new MultipartFormDataContent();
+            var fileContent = new StreamContent(file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 15));
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            content.Add(fileContent, "file", file.Name);
+
+            var response = await client.PostAsync("api/ocr/analisar", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                
+                // --- LÓGICA ANTI-ERRO (TryGetProperty) ---
+                string textoBruto = "";
+                if (json.TryGetProperty("TextoBruto", out var prop)) { textoBruto = prop.GetString(); }
+                else if (json.TryGetProperty("textoBruto", out var propMin)) { textoBruto = propMin.GetString(); }
+
+                if (string.IsNullOrEmpty(textoBruto))
+                {
+                    Snackbar.Add("Texto não identificado na imagem.", Severity.Warning);
+                    return;
+                }
+
+                // --- REGEX MELHORADA PARA PEGAR O VALOR DO SEU PIX ---
+                // Tenta achar "R$ 81,49" ou apenas "81,49" que esteja em destaque
+                var matchValor = System.Text.RegularExpressions.Regex.Match(textoBruto, @"(?:R\$|VALOR|TOTAL)?\s*(\d{1,3}(?:\.\d{3})*,\d{2})", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                
+                decimal valorEncontrado = 0;
+                if (matchValor.Success)
+                {
+                    string v = matchValor.Groups[1].Value.Replace(".", "").Replace(",", ".");
+                    decimal.TryParse(v, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out valorEncontrado);
+                }
+
+                // --- EXTRAÇÃO DE DATA ---
+                var matchData = System.Text.RegularExpressions.Regex.Match(textoBruto, @"(\d{2}/\d{2}/\d{4})");
+                DateTime dataDoc = DateTime.Now;
+                if (matchData.Success) { DateTime.TryParse(matchData.Groups[1].Value, new CultureInfo("pt-BR"), DateTimeStyles.None, out dataDoc); }
+
+                // --- LÓGICA INTELIGENTE DE RESPONSÁVEL ---
+                // Se o texto contiver algo relacionado ao seu negócio, já sugere Namorada/Business
+                bool ehStudio = textoBruto.ToUpper().Contains("STUDIO") || textoBruto.ToUpper().Contains("SECRET");
+
+                transacaoOCR = new Transacao
+                {
+                    Data = dataDoc,
+                    Valor = valorEncontrado,
+                    Descricao = ehStudio ? "Venda Studio (OCR)" : "Gasto via OCR",
+                    Responsavel = ehStudio ? "Namorada" : "Eu",
+                    EhPessoal = !ehStudio,
+                    Tipo = ehStudio ? "Entrada" : "Saída",
+                    Categoria = ehStudio ? "Faturamento" : "Variáveis"
+                };
+
+                _modalOCRAberto = true;
+                StateHasChanged();
+            }
+            else
+            {
+                var erroApi = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Erro na API: {erroApi}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro no Dashboard: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SalvarTransacaoOCR()
+    {
+        var client = ClientFactory.CreateClient("ClientesAPI");
+        
+        // Se for saída, garante que o valor seja negativo no banco
+        if (transacaoOCR.Tipo == "Saída" && transacaoOCR.Valor > 0) transacaoOCR.Valor *= -1;
+
+        var response = await client.PostAsJsonAsync("api/transacoes", transacaoOCR);
+
+        if (response.IsSuccessStatusCode)
+        {
+            _modalOCRAberto = false;
+            await CarregarTudo();
+            Snackbar.Add("Transação da foto salva! 💸", Severity.Success);
+        }
+    }
+}

@@ -1,0 +1,25 @@
+﻿@using Microsoft.AspNetCore.Components.Routing
+@using MinhaVidaDashboard.Layout
+@* Adicione o using abaixo para garantir que ele ache as páginas *@
+@using MinhaVidaDashboard.Pages 
+
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        @* Usamos Layout.MainLayout para ser explícito e evitar o erro CS0246 *@
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MinhaVidaDashboard.Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Não encontrado</PageTitle>
+        <LayoutView Layout="@typeof(MinhaVidaDashboard.Layout.MainLayout)">
+            <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-10">
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
+                    Desculpe, não encontramos nada neste endereço.
+                </MudAlert>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" href="/" Class="mt-4">
+                    Voltar para o Início
+                </MudButton>
+            </MudContainer>
+        </LayoutView>
+    </NotFound>
+</Router>
