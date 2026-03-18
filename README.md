@@ -38,3 +38,20 @@ Um ecossistema financeiro completo para casais e empreendedores, focado na separ
 1. Clone este repositório:
    ```bash
    git clone [https://github.com/Tognolli0/Dashboard_Gestao_Casal.git](https://github.com/Tognolli0/Dashboard_Gestao_Casal.git)
+
+Configure suas chaves no appsettings.json ou via User Secrets:
+
+AzureAPIKey: Sua chave do Azure AI Vision.
+
+AzureEndpoint: O endpoint do seu recurso na Azure.
+
+Execute o script de Migrations para criar o banco de dados:
+
+Bash
+dotnet ef database update --project MinhaVidaAPI
+Inicie o Backend e o Frontend simultaneamente.
+
+🛡️ Segurança de Dados
+Este projeto utiliza tratamento rigoroso de segredos. As chaves de API devem ser gerenciadas preferencialmente via User Secrets para evitar exposição no controle de versão.
+
+Desenvolvido por Diogo Tognolli 🚀
