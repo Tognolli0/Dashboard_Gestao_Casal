@@ -22,6 +22,9 @@ builder.Services.AddScoped(sp =>
 // Cache singleton — persiste entre navegações de página
 builder.Services.AddSingleton<CacheService>();
 
+// Keep-alive singleton — mantém a API acordada, evita cold start
+builder.Services.AddSingleton<KeepAliveService>();
+
 builder.Services.AddMudServices(config =>
 {
     config.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.BottomRight;
@@ -36,4 +39,9 @@ var culture = new CultureInfo("pt-BR");
 CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
 
-await builder.Build().RunAsync();
+var app = builder.Build();
+
+// Inicia o keep-alive assim que o app sobe
+app.Services.GetRequiredService<KeepAliveService>().Iniciar();
+
+await app.RunAsync();

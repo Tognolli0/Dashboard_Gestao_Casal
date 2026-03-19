@@ -20,14 +20,14 @@ namespace MinhaVidaAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Desejo>>> GetDesejos()
         {
-            return await _context.Desejos.ToListAsync();
+            return await _context.Desejos.AsNoTracking().ToListAsync();
         }
 
         // GET: api/desejos/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Desejo>> GetDesejo(int id)
         {
-            var desejo = await _context.Desejos.FindAsync(id);
+            var desejo = await _context.Desejos.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
 
             if (desejo == null) return NotFound();
 

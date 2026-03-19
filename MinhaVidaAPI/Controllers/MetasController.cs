@@ -22,7 +22,7 @@ namespace MinhaVidaAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Meta>>> GetMetas()
         {
-            return await _context.Metas.ToListAsync();
+            return await _context.Metas.AsNoTracking().ToListAsync();
         }
 
         [HttpPost]

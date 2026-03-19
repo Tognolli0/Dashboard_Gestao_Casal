@@ -136,7 +136,57 @@
             </div>
         </MudTabPanel>
 
-        @* --- ABA 3: BUCKET LIST --- *@
+        @* --- ABA 3: EVOLUÇÃO MENSAL --- *@
+        <MudTabPanel Text="Evolução" Icon="@Icons.Material.Filled.TrendingUp">
+            <MudPaper Class="pa-6" Elevation="4" Style="border-radius:24px;">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-6">
+                    <div>
+                        <MudText Typo="Typo.h5" Style="font-weight:800;">
+                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Class="mr-2 mb-n1" Color="Color.Success" />
+                            Evolução do Patrimônio @DateTime.Now.Year
+                        </MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Dark">Crescimento acumulado mês a mês</MudText>
+                    </div>
+                    <div style="background:#e8f5e9; padding:10px 20px; border-radius:12px; border:1px solid #4caf50;">
+                        <MudText Typo="Typo.caption" Style="color:#2e7d32; font-weight:700; display:block;">CRESCIMENTO NO ANO</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight:900; color:#1b5e20;">
+                            @crescimentoAno.ToString("C")
+                        </MudText>
+                    </div>
+                </MudStack>
+
+                @* Gráfico de linha *@
+                <MudChart T="double" ChartType="ChartType.Line" Width="100%" Height="400px"
+                          ChartSeries="@SeriesEvolucao" XAxisLabels="@mesesLabels"
+                          ChartOptions="@_optionsEvolucao" LegendPosition="Position.Bottom" />
+
+                @* Cards de resumo por mês *@
+                <MudDivider Class="my-6" />
+                <MudText Typo="Typo.subtitle1" Style="font-weight:700; margin-bottom:16px;">Resumo por Mês</MudText>
+                <div style="overflow-x:auto;">
+                    <MudTable Items="@resumoMensal" Hover="true" Dense="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Mês</MudTh>
+                            <MudTh Style="text-align:right">Eu</MudTh>
+                            <MudTh Style="text-align:right">Ela</MudTh>
+                            <MudTh Style="text-align:right">Total</MudTh>
+                            <MudTh Style="text-align:right">Variação</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd Style="font-weight:600;">@context.NomeMes</MudTd>
+                            <MudTd Style="text-align:right;">@context.SaldoEu.ToString("C")</MudTd>
+                            <MudTd Style="text-align:right;">@context.SaldoDela.ToString("C")</MudTd>
+                            <MudTd Style="text-align:right; font-weight:700;">@context.Total.ToString("C")</MudTd>
+                            <MudTd Style="@($"text-align:right; font-weight:700; color:{(context.Variacao >= 0 ? "#2e7d32" : "#d32f2f")};")">
+                                @(context.Variacao >= 0 ? "+" : "")@context.Variacao.ToString("C")
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            </MudPaper>
+        </MudTabPanel>
+
+        @* --- ABA 4: BUCKET LIST --- *@
         <MudTabPanel Text="Bucket List" Icon="@Icons.Material.Filled.Flight">
             <div class="pa-4">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-8">
@@ -304,6 +354,16 @@
 
     public List<ChartSeries<double>> SeriesPessoal  = new();
     public List<ChartSeries<double>> SeriesBusiness = new();
+    public List<ChartSeries<double>> SeriesEvolucao = new();
+
+    private string[] mesesLabels = Array.Empty<string>();
+    private double   crescimentoAno = 0;
+    private List<ResumoMensal> resumoMensal = new();
+
+    private readonly ChartOptions _optionsEvolucao = new()
+    {
+        ChartPalette = new[] { "#5C6BC0", "#4CAF50", "#E91E63", "#FF9800", "#9C27B0" }
+    };
 
     private double totalPatrimonio =>
         saldoEuPessoal + saldoEuBusiness + saldoDelaPessoal + saldoDelaBusiness + saldoJuntos;
@@ -378,7 +438,85 @@
             new() { Name = "Minha Empresa", Data = new double[] { Math.Max(0, saldoEuBusiness) } },
             new() { Name = "Studio Dela",   Data = new double[] { Math.Max(0, saldoDelaBusiness) } }
         };
+
+        // Calcula evolução mensal acumulada
+        CalcularEvolucao(eu, dela);
+
         StateHasChanged();
+    }
+
+    private void CalcularEvolucao(List<Transacao> eu, List<Transacao> dela)
+    {
+        var anoAtual = DateTime.Now.Year;
+        var cultura  = new System.Globalization.CultureInfo("pt-BR");
+        var meses    = Enumerable.Range(1, 12).ToList();
+
+        // Para cada mês, calcula o saldo ACUMULADO até aquele mês
+        var dadosEu        = new double[12];
+        var dadosDela      = new double[12];
+        var dadosTotal     = new double[12];
+        var dadosPessoal   = new double[12];
+        var dadosBusiness  = new double[12];
+
+        for (int i = 0; i < 12; i++)
+        {
+            int mes = i + 1;
+
+            // Acumulado: todas as transações até este mês inclusive
+            var transEuAte   = eu.Where(t   => t.Data.Year == anoAtual && t.Data.Month <= mes).ToList();
+            var transDelaAte = dela.Where(t => t.Data.Year == anoAtual && t.Data.Month <= mes).ToList();
+
+            dadosEu[i]       = SomarSaldo(transEuAte,   true)  + SomarSaldo(transEuAte,   false);
+            dadosDela[i]     = SomarSaldo(transDelaAte, true)  + SomarSaldo(transDelaAte, false);
+            dadosTotal[i]    = dadosEu[i] + dadosDela[i];
+            dadosPessoal[i]  = SomarSaldo(transEuAte, true)   + SomarSaldo(transDelaAte, true);
+            dadosBusiness[i] = SomarSaldo(transEuAte, false)  + SomarSaldo(transDelaAte, false);
+        }
+
+        mesesLabels = meses
+            .Select(m => new DateTime(anoAtual, m, 1).ToString("MMM", cultura))
+            .ToArray();
+
+        SeriesEvolucao = new List<ChartSeries<double>>
+        {
+            new() { Name = "Total",    Data = dadosTotal },
+            new() { Name = "Eu",       Data = dadosEu },
+            new() { Name = "Ela",      Data = dadosDela },
+            new() { Name = "Pessoal",  Data = dadosPessoal },
+            new() { Name = "Business", Data = dadosBusiness },
+        };
+
+        // Crescimento = total acumulado do mês atual
+        var mesAtual = DateTime.Now.Month - 1;
+        crescimentoAno = dadosTotal[mesAtual];
+
+        // Tabela de resumo mensal
+        resumoMensal = new List<ResumoMensal>();
+        double totalAnterior = 0;
+        for (int i = 0; i < DateTime.Now.Month; i++)
+        {
+            var variacao = dadosTotal[i] - totalAnterior;
+            resumoMensal.Add(new ResumoMensal
+            {
+                NomeMes  = new DateTime(anoAtual, i + 1, 1).ToString("MMMM", cultura),
+                SaldoEu  = dadosEu[i],
+                SaldoDela = dadosDela[i],
+                Total    = dadosTotal[i],
+                Variacao = variacao
+            });
+            totalAnterior = dadosTotal[i];
+        }
+        // Mais recente primeiro
+        resumoMensal.Reverse();
+    }
+
+    private class ResumoMensal
+    {
+        public string NomeMes  { get; set; } = string.Empty;
+        public double SaldoEu  { get; set; }
+        public double SaldoDela { get; set; }
+        public double Total    { get; set; }
+        public double Variacao { get; set; }
     }
 
     // ViewModel local para o endpoint unificado

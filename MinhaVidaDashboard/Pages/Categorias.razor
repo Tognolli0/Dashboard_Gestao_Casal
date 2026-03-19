@@ -3,6 +3,7 @@
 @using System.Globalization
 @inject IHttpClientFactory ClientFactory
 @inject ISnackbar Snackbar
+@inject MinhaVidaDashboard.Services.CacheService Cache
 
 <PageTitle>Categorias de Gastos</PageTitle>
 
@@ -18,16 +19,14 @@
             <MudText Typo="Typo.body2" Color="Color.Dark">Entenda para onde o dinheiro está indo</MudText>
         </div>
         <MudSpacer />
-        <MudSelect T="int" Label="Mês" Value="@mesSelecionado"
-                   ValueChanged="@((int v) => { mesSelecionado = v; StateHasChanged(); })"
+        <MudSelect T="int" Label="Mês" Value="mesSelecionado" ValueChanged="OnMesChanged"
                    Variant="Variant.Outlined" Style="width:180px" AnchorOrigin="Origin.BottomCenter">
             @foreach (var (num, nome) in Enumerable.Range(1, 12).Select(m => (m, new DateTime(2000, m, 1).ToString("MMMM", new CultureInfo("pt-BR")))))
             {
                 <MudSelectItem T="int" Value="@num">@nome</MudSelectItem>
             }
         </MudSelect>
-        <MudSelect T="string" Label="Pessoa" Value="@pessoaSelecionada"
-                   ValueChanged="@((string v) => { pessoaSelecionada = v; StateHasChanged(); })"
+        <MudSelect T="string" Label="Pessoa" Value="pessoaSelecionada" ValueChanged="OnPessoaChanged"
                    Variant="Variant.Outlined" Style="width:160px" AnchorOrigin="Origin.BottomCenter">
             <MudSelectItem Value="@("Todos")">👫 Todos</MudSelectItem>
             <MudSelectItem Value="@("Eu")">👤 Eu</MudSelectItem>
@@ -263,14 +262,14 @@
     // ──────────────────────────────────────────────
     // KPIs
     // ──────────────────────────────────────────────
-    private decimal totalSaidas    => TransacoesMes.Where(t => t.Tipo == "Saída").Sum(t => Math.Abs(t.Valor));
-    private decimal totalEntradas  => TransacoesMes.Where(t => t.Tipo == "Entrada").Sum(t => Math.Abs(t.Valor));
-    private decimal saldoLiquido   => totalEntradas - totalSaidas;
-    private int     categoriasAtivas => resumoPorCategoria.Count;
+    private decimal totalSaidas => TransacoesMes.Where(t => t.Tipo == "Saída").Sum(t => Math.Abs(t.Valor));
+    private decimal totalEntradas => TransacoesMes.Where(t => t.Tipo == "Entrada").Sum(t => Math.Abs(t.Valor));
+    private decimal saldoLiquido => totalEntradas - totalSaidas;
+    private int categoriasAtivas => resumoPorCategoria.Count;
     private decimal gastosPessoais => TransacoesMes.Where(t => t.Tipo == "Saída" && t.EhPessoal).Sum(t => Math.Abs(t.Valor));
     private decimal gastosBusiness => TransacoesMes.Where(t => t.Tipo == "Saída" && !t.EhPessoal).Sum(t => Math.Abs(t.Valor));
-    private double  porcentagemPessoal => totalSaidas > 0 ? (double)(gastosPessoais / totalSaidas) * 100 : 0;
-    private double  porcentagemBusiness => totalSaidas > 0 ? (double)(gastosBusiness / totalSaidas) * 100 : 0;
+    private double porcentagemPessoal => totalSaidas > 0 ? (double)(gastosPessoais / totalSaidas) * 100 : 0;
+    private double porcentagemBusiness => totalSaidas > 0 ? (double)(gastosBusiness / totalSaidas) * 100 : 0;
 
     // ──────────────────────────────────────────────
     // Agrupamento por categoria
@@ -280,9 +279,9 @@
         .GroupBy(t => t.Categoria)
         .Select(g => new ResumoCategoria
         {
-            Categoria   = g.Key,
+            Categoria = g.Key,
             TotalSaidas = g.Sum(t => Math.Abs(t.Valor)),
-            Quantidade  = g.Count()
+            Quantidade = g.Count()
         })
         .OrderByDescending(x => x.TotalSaidas)
         .ToList();
@@ -312,13 +311,37 @@
 
     private async Task Carregar()
     {
+        // Tenta usar cache primeiro — evita chamada à API se dados já estão em memória
+        var cached = Cache.ObterCache();
+        if (cached != null)
+        {
+            todasTransacoes = cached.TransacoesEu.Concat(cached.TransacoesDela).ToList();
+            StateHasChanged();
+            return;
+        }
+
         carregando = true;
         try
         {
             var client = ClientFactory.CreateClient("ClientesAPI");
-            var eu    = await client.GetFromJsonAsync<List<Transacao>>("api/transacoes/Eu") ?? new();
-            var dela  = await client.GetFromJsonAsync<List<Transacao>>("api/transacoes/Namorada") ?? new();
-            todasTransacoes = eu.Concat(dela).ToList();
+
+            // Usa endpoint unificado em vez de 2 chamadas separadas
+            var resumo = await client.GetFromJsonAsync<DashboardResumo>("api/dashboard/resumo");
+            if (resumo != null)
+            {
+                var eu = resumo.TransacoesEu ?? new();
+                var dela = resumo.TransacoesDela ?? new();
+                todasTransacoes = eu.Concat(dela).ToList();
+
+                // Salva no cache para outras páginas também aproveitarem
+                Cache.SalvarCache(new MinhaVidaDashboard.Services.DashboardCache
+                {
+                    TransacoesEu = eu,
+                    TransacoesDela = dela,
+                    Metas = resumo.Metas ?? new(),
+                    Desejos = resumo.Desejos ?? new()
+                });
+            }
         }
         catch (Exception ex)
         {
@@ -332,36 +355,44 @@
         }
     }
 
+    private class DashboardResumo
+    {
+        public List<Transacao> TransacoesEu { get; set; } = new();
+        public List<Transacao> TransacoesDela { get; set; } = new();
+        public List<Meta> Metas { get; set; } = new();
+        public List<Desejo> Desejos { get; set; } = new();
+    }
+
     // ──────────────────────────────────────────────
     // Helpers visuais
     // ──────────────────────────────────────────────
     private static string GetCorCategoria(string categoria) => categoria switch
     {
-        "Alimentação"   => "#e65100",
-        "Transporte"    => "#1565c0",
-        "Moradia"       => "#2e7d32",
-        "Saúde"         => "#c62828",
-        "Educação"      => "#6a1b9a",
-        "Lazer"         => "#f57f17",
-        "Vestuário"     => "#ad1457",
-        "Investimento"  => "#00695c",
-        "Receita"       => "#1b5e20",
-        "Importação CSV"=> "#424242",
-        _               => "#455a64"
+        "Alimentação" => "#e65100",
+        "Transporte" => "#1565c0",
+        "Moradia" => "#2e7d32",
+        "Saúde" => "#c62828",
+        "Educação" => "#6a1b9a",
+        "Lazer" => "#f57f17",
+        "Vestuário" => "#ad1457",
+        "Investimento" => "#00695c",
+        "Receita" => "#1b5e20",
+        "Importação CSV" => "#424242",
+        _ => "#455a64"
     };
 
     private static string GetIconeCategoria(string categoria) => categoria switch
     {
-        "Alimentação"   => Icons.Material.Filled.Restaurant,
-        "Transporte"    => Icons.Material.Filled.DirectionsCar,
-        "Moradia"       => Icons.Material.Filled.Home,
-        "Saúde"         => Icons.Material.Filled.LocalHospital,
-        "Educação"      => Icons.Material.Filled.School,
-        "Lazer"         => Icons.Material.Filled.SportsEsports,
-        "Vestuário"     => Icons.Material.Filled.Checkroom,
-        "Investimento"  => Icons.Material.Filled.TrendingUp,
-        "Receita"       => Icons.Material.Filled.AttachMoney,
-        _               => Icons.Material.Filled.Category
+        "Alimentação" => Icons.Material.Filled.Restaurant,
+        "Transporte" => Icons.Material.Filled.DirectionsCar,
+        "Moradia" => Icons.Material.Filled.Home,
+        "Saúde" => Icons.Material.Filled.LocalHospital,
+        "Educação" => Icons.Material.Filled.School,
+        "Lazer" => Icons.Material.Filled.SportsEsports,
+        "Vestuário" => Icons.Material.Filled.Checkroom,
+        "Investimento" => Icons.Material.Filled.TrendingUp,
+        "Receita" => Icons.Material.Filled.AttachMoney,
+        _ => Icons.Material.Filled.Category
     };
 
     private static string GetCorRanking(int posicao) => posicao switch
@@ -378,8 +409,8 @@
     // ──────────────────────────────────────────────
     private class ResumoCategoria
     {
-        public string  Categoria   { get; set; } = string.Empty;
+        public string Categoria { get; set; } = string.Empty;
         public decimal TotalSaidas { get; set; }
-        public int     Quantidade  { get; set; }
+        public int Quantidade { get; set; }
     }
 }
