@@ -3,10 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using MinhaVidaAPI.Data;
 using MinhaVidaAPI.Models;
 using MinhaVidaAPI.Services;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace MinhaVidaAPI.Controllers
 {
@@ -17,23 +13,23 @@ namespace MinhaVidaAPI.Controllers
         private readonly AppDbContext _context;
         private readonly WhatsAppService _waService;
 
-        // CONSTRUTOR CORRIGIDO: Agora atribuímos o waService corretamente
         public TransacoesController(AppDbContext context, WhatsAppService waService)
         {
             _context = context;
             _waService = waService;
         }
 
-        // GET: api/transacoes/{responsavel} (Busca transações de Eu ou Namorada)
+        // GET: api/transacoes/{responsavel}
         [HttpGet("{responsavel}")]
         public async Task<ActionResult<IEnumerable<Transacao>>> GetTransacoes(string responsavel)
         {
             return await _context.Transacoes
                 .Where(t => t.Responsavel == responsavel)
+                .OrderByDescending(t => t.Data) // Ordenar por data desc por padrão
                 .ToListAsync();
         }
 
-        // POST: api/transacoes (Lançamento individual manual)
+        // POST: api/transacoes (Lançamento individual)
         [HttpPost]
         public async Task<ActionResult<Transacao>> PostTransacao(Transacao transacao)
         {
@@ -42,7 +38,19 @@ namespace MinhaVidaAPI.Controllers
             return Ok(transacao);
         }
 
-        // GET: api/transacoes/resumo (Somas básicas)
+        // DELETE: api/transacoes/{id}  ← ENDPOINT QUE ESTAVA FALTANDO
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTransacao(int id)
+        {
+            var transacao = await _context.Transacoes.FindAsync(id);
+            if (transacao == null) return NotFound();
+
+            _context.Transacoes.Remove(transacao);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // GET: api/transacoes/resumo
         [HttpGet("resumo")]
         public async Task<IActionResult> GetResumo()
         {
@@ -55,7 +63,7 @@ namespace MinhaVidaAPI.Controllers
             return Ok(resumo);
         }
 
-        // POST: api/transacoes/lote (IMPORTAÇÃO DO CSV)
+        // POST: api/transacoes/lote (Importação CSV)
         [HttpPost("lote")]
         public async Task<IActionResult> PostTransacoesLote([FromBody] List<Transacao> transacoes)
         {
@@ -64,16 +72,11 @@ namespace MinhaVidaAPI.Controllers
 
             try
             {
-                // Garantir que o banco crie novos IDs para cada item do CSV
-                foreach (var t in transacoes)
-                {
-                    t.Id = 0;
-                }
+                foreach (var t in transacoes) t.Id = 0; // Força novo ID
 
                 _context.Transacoes.AddRange(transacoes);
                 await _context.SaveChangesAsync();
 
-                // Lógica de Notificação WhatsApp
                 var entradas = transacoes.Where(t => t.Valor > 0).Sum(t => t.Valor);
                 var saidas = transacoes.Where(t => t.Valor < 0).Sum(t => t.Valor);
 
@@ -88,7 +91,6 @@ namespace MinhaVidaAPI.Controllers
             }
             catch (Exception ex)
             {
-                // Log detalhado no console da API para debug
                 Console.WriteLine($"ERRO NO LOTE: {ex.Message}");
                 if (ex.InnerException != null)
                     Console.WriteLine($"DETALHE: {ex.InnerException.Message}");

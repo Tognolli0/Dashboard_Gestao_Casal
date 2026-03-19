@@ -40,7 +40,7 @@ namespace MinhaVidaAPI.Workers
                         var saldoTotal = transacoes.Sum(t => t.Tipo == "Entrada" ? (double)t.Valor : (double)-t.Valor);
 
                         // Adiciona o saldo fixo da reserva conjunta que definimos no Blazor
-                        var saldoConsolidado = saldoTotal + 12500;
+                        var saldoConsolidado = saldoTotal;
 
                         // Busca a meta mais próxima
                         var proximaMeta = await context.Metas.OrderBy(m => m.ValorObjetivo).FirstOrDefaultAsync();

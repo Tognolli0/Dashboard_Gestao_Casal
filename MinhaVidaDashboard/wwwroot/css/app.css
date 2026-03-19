@@ -113,3 +113,23 @@ code {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+/* ── Gráficos ─────────────────────────────────────────── */
+.grafico-foco .mud-chart.mud-chart-bar {
+    height: 550px !important;
+    width: 100% !important;
+}
+
+.grafico-foco .mud-chart-container svg {
+    height: 500px !important;
+    width: 100% !important;
+}
+
+.mud-chart-serie:hover {
+    filter: contrast(1.2);
+    cursor: pointer;
+}
+
+.mud-chart.mud-chart-bar {
+    height: 350px !important;
+    width: 100% !important;
+}

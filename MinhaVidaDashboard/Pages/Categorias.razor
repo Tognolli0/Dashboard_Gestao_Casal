@@ -1,0 +1,385 @@
+﻿@page "/categorias"
+@using MinhaVidaDashboard.Models
+@using System.Globalization
+@inject IHttpClientFactory ClientFactory
+@inject ISnackbar Snackbar
+
+<PageTitle>Categorias de Gastos</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+
+    @* Cabeçalho *@
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-6">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800;">
+                <MudIcon Icon="@Icons.Material.Filled.PieChart" Class="mr-2 mb-n1" Color="Color.Primary" />
+                Categorias de Gastos
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Dark">Entenda para onde o dinheiro está indo</MudText>
+        </div>
+        <MudSpacer />
+        <MudSelect T="int" Label="Mês" Value="@mesSelecionado"
+                   ValueChanged="@((int v) => { mesSelecionado = v; StateHasChanged(); })"
+                   Variant="Variant.Outlined" Style="width:180px" AnchorOrigin="Origin.BottomCenter">
+            @foreach (var (num, nome) in Enumerable.Range(1, 12).Select(m => (m, new DateTime(2000, m, 1).ToString("MMMM", new CultureInfo("pt-BR")))))
+            {
+                <MudSelectItem T="int" Value="@num">@nome</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="string" Label="Pessoa" Value="@pessoaSelecionada"
+                   ValueChanged="@((string v) => { pessoaSelecionada = v; StateHasChanged(); })"
+                   Variant="Variant.Outlined" Style="width:160px" AnchorOrigin="Origin.BottomCenter">
+            <MudSelectItem Value="@("Todos")">👫 Todos</MudSelectItem>
+            <MudSelectItem Value="@("Eu")">👤 Eu</MudSelectItem>
+            <MudSelectItem Value="@("Namorada")">💖 Ela</MudSelectItem>
+        </MudSelect>
+    </MudStack>
+
+    @if (carregando)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+    }
+
+    @* Cards de KPI *@
+    <MudGrid Class="mb-6">
+        <MudItem xs="6" sm="3">
+            <MudPaper Class="pa-4 text-center" Elevation="3" Style="border-radius:16px; border-top:4px solid #f44336;">
+                <MudText Typo="Typo.caption" Style="color:#f44336; font-weight:700; letter-spacing:1px;">TOTAL GASTOS</MudText>
+                <MudText Typo="Typo.h5" Style="font-weight:900; color:#b71c1c;">@totalSaidas.ToString("C")</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudPaper Class="pa-4 text-center" Elevation="3" Style="border-radius:16px; border-top:4px solid #4caf50;">
+                <MudText Typo="Typo.caption" Style="color:#4caf50; font-weight:700; letter-spacing:1px;">TOTAL ENTRADAS</MudText>
+                <MudText Typo="Typo.h5" Style="font-weight:900; color:#1b5e20;">@totalEntradas.ToString("C")</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudPaper Class="pa-4 text-center" Elevation="3" Style="@($"border-radius:16px; border-top:4px solid {(saldoLiquido >= 0 ? "#5C6BC0" : "#ff9800")};")">
+                <MudText Typo="Typo.caption" Style="font-weight:700; letter-spacing:1px;">SALDO LÍQUIDO</MudText>
+                <MudText Typo="Typo.h5" Style="@($"font-weight:900; color:{(saldoLiquido >= 0 ? "#3f51b5" : "#e65100")};")">
+                    @saldoLiquido.ToString("C")
+                </MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudPaper Class="pa-4 text-center" Elevation="3" Style="border-radius:16px; border-top:4px solid #9c27b0;">
+                <MudText Typo="Typo.caption" Style="color:#9c27b0; font-weight:700; letter-spacing:1px;">CATEGORIAS ATIVAS</MudText>
+                <MudText Typo="Typo.h5" Style="font-weight:900; color:#6a1b9a;">@categoriasAtivas</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid>
+        @* Gráfico de barras por categoria *@
+        <MudItem xs="12" md="7">
+            <MudPaper Class="pa-6" Elevation="4" Style="border-radius:20px; height:100%;">
+                <MudText Typo="Typo.h6" Style="font-weight:800; margin-bottom:24px;">
+                    <MudIcon Icon="@Icons.Material.Filled.BarChart" Class="mr-2 mb-n1" Color="Color.Primary" />
+                    Gastos por Categoria
+                </MudText>
+
+                @if (!resumoPorCategoria.Any())
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                        Nenhum gasto encontrado para o período selecionado.
+                    </MudAlert>
+                }
+                else
+                {
+                    @foreach (var item in resumoPorCategoria.OrderByDescending(x => x.TotalSaidas))
+                    {
+                        var porcentagem = totalSaidas > 0 ? (item.TotalSaidas / totalSaidas) * 100 : 0;
+                        var corBarra = GetCorCategoria(item.Categoria);
+                        <div class="mb-4">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mb-1">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <MudIcon Icon="@GetIconeCategoria(item.Categoria)" Size="Size.Small"
+                                             Style="@($"color:{corBarra}")" />
+                                    <MudText Typo="Typo.body2" Style="font-weight:600;">@item.Categoria</MudText>
+                                    <MudChip T="string" Size="Size.Small" Style="@($"background:{corBarra}22; color:{corBarra}; font-weight:700;")">
+                                        @item.Quantidade lançamentos
+                                    </MudChip>
+                                </div>
+                                <MudText Typo="Typo.body2" Style="font-weight:800;">@item.TotalSaidas.ToString("C")</MudText>
+                            </MudStack>
+                            <div style="background:#f5f5f5; border-radius:8px; height:10px; overflow:hidden;">
+                                <div style="@($"background:{corBarra}; height:100%; width:{Math.Min(porcentagem, 100):F1}%; border-radius:8px; transition:width 0.6s ease;")"></div>
+                            </div>
+                            <MudText Typo="Typo.caption" Color="Color.Dark" Style="float:right;">
+                                @porcentagem.ToString("F1")% dos gastos
+                            </MudText>
+                        </div>
+                    }
+                }
+            </MudPaper>
+        </MudItem>
+
+        @* Painel lateral: top gastos e comparativo *@
+        <MudItem xs="12" md="5">
+            <MudStack Spacing="4">
+
+                @* Top 5 maiores gastos individuais *@
+                <MudPaper Class="pa-6" Elevation="4" Style="border-radius:20px;">
+                    <MudText Typo="Typo.h6" Style="font-weight:800; margin-bottom:16px;">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Class="mr-2 mb-n1" Color="Color.Error" />
+                        Top 5 Maiores Gastos
+                    </MudText>
+                    @if (!top5Gastos.Any())
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Dark">Nenhum gasto encontrado.</MudText>
+                    }
+                    else
+                    {
+                        @foreach (var (transacao, index) in top5Gastos.Select((t, i) => (t, i + 1)))
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                                <div style="@($"width:28px; height:28px; border-radius:50%; background:{GetCorRanking(index)}; display:flex; align-items:center; justify-content:center; font-weight:900; color:white; font-size:0.75rem; flex-shrink:0;")">
+                                    @index
+                                </div>
+                                <MudStack Spacing="0" Style="flex-grow:1; min-width:0;">
+                                    <MudText Typo="Typo.body2" Style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                        @transacao.Descricao
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Dark">
+                                        @transacao.Data.ToShortDateString() · @transacao.Categoria
+                                    </MudText>
+                                </MudStack>
+                                <MudText Typo="Typo.body2" Style="font-weight:800; color:#d32f2f; flex-shrink:0;">
+                                    @Math.Abs(transacao.Valor).ToString("C")
+                                </MudText>
+                            </MudStack>
+                        }
+                    }
+                </MudPaper>
+
+                @* Divisão Pessoal vs Business *@
+                <MudPaper Class="pa-6" Elevation="4" Style="border-radius:20px;">
+                    <MudText Typo="Typo.h6" Style="font-weight:800; margin-bottom:16px;">
+                        <MudIcon Icon="@Icons.Material.Filled.DonutLarge" Class="mr-2 mb-n1" Color="Color.Info" />
+                        Pessoal vs. Business
+                    </MudText>
+                    <MudGrid>
+                        <MudItem xs="6">
+                            <div style="text-align:center; padding:12px; background:#e8eaf6; border-radius:12px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Home" Color="Color.Primary" />
+                                <MudText Typo="Typo.caption" Style="display:block; font-weight:700; color:#3f51b5;">PESSOAL</MudText>
+                                <MudText Typo="Typo.h6" Style="font-weight:900; color:#3f51b5;">@gastosPessoais.ToString("C")</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Dark">@porcentagemPessoal.ToString("F0")% dos gastos</MudText>
+                            </div>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <div style="text-align:center; padding:12px; background:#e3f2fd; border-radius:12px;">
+                                <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Color="Color.Info" />
+                                <MudText Typo="Typo.caption" Style="display:block; font-weight:700; color:#0288d1;">BUSINESS</MudText>
+                                <MudText Typo="Typo.h6" Style="font-weight:900; color:#0288d1;">@gastosBusiness.ToString("C")</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Dark">@porcentagemBusiness.ToString("F0")% dos gastos</MudText>
+                            </div>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+            </MudStack>
+        </MudItem>
+    </MudGrid>
+
+    @* Tabela completa de transações do mês *@
+    <MudPaper Class="pa-6 mt-6" Elevation="4" Style="border-radius:20px;">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudText Typo="Typo.h6" Style="font-weight:800;">
+                <MudIcon Icon="@Icons.Material.Filled.List" Class="mr-2 mb-n1" Color="Color.Secondary" />
+                Todas as Transações do Mês
+            </MudText>
+            <MudTextField @bind-Value="filtroTexto" Placeholder="Buscar..." Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Style="width:220px;" />
+        </MudStack>
+
+        <MudTable Items="@TransacoesFiltradas" Hover="true" Dense="true" Elevation="0"
+                  Loading="@carregando" SortLabel="Ordenar">
+            <HeaderContent>
+                <MudTh><MudTableSortLabel SortBy="new Func<Transacao, object>(t => t.Data)">Data</MudTableSortLabel></MudTh>
+                <MudTh>Descrição</MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<Transacao, object>(t => t.Categoria)">Categoria</MudTableSortLabel></MudTh>
+                <MudTh>Pessoa</MudTh>
+                <MudTh>Tipo</MudTh>
+                <MudTh Style="text-align:right"><MudTableSortLabel SortBy="new Func<Transacao, object>(t => Math.Abs(t.Valor))">Valor</MudTableSortLabel></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Data.ToShortDateString()</MudTd>
+                <MudTd Style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    @context.Descricao
+                </MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small"
+                             Style="@($"background:{GetCorCategoria(context.Categoria)}22; color:{GetCorCategoria(context.Categoria)}; font-size:0.7rem;")">
+                        @context.Categoria
+                    </MudChip>
+                </MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(context.Responsavel == "Eu" ? Color.Primary : Color.Secondary)">
+                        @(context.Responsavel == "Eu" ? "Eu" : "Ela")
+                    </MudChip>
+                </MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(context.Tipo == "Entrada" ? Color.Success : Color.Error)">
+                        @context.Tipo
+                    </MudChip>
+                </MudTd>
+                <MudTd Style="@($"text-align:right; font-weight:bold; color:{(context.Tipo == "Entrada" ? "#2e7d32" : "#d32f2f")};")">
+                    @((context.Tipo == "Saída" && context.Valor > 0 ? -context.Valor : context.Valor).ToString("C"))
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Class="pa-4 text-center">Nenhuma transação encontrada.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+
+</MudContainer>
+
+@code {
+    private List<Transacao> todasTransacoes = new();
+    private int mesSelecionado = DateTime.Now.Month;
+    private string pessoaSelecionada = "Todos";
+    private string filtroTexto = string.Empty;
+    private bool carregando = false;
+
+    // ──────────────────────────────────────────────
+    // Dados filtrados base
+    // ──────────────────────────────────────────────
+    private IEnumerable<Transacao> TransacoesMes => todasTransacoes
+        .Where(t => t.Data.Month == mesSelecionado && t.Data.Year == DateTime.Now.Year)
+        .Where(t => pessoaSelecionada == "Todos" || t.Responsavel == pessoaSelecionada);
+
+    private IEnumerable<Transacao> TransacoesFiltradas => TransacoesMes
+        .Where(t => string.IsNullOrWhiteSpace(filtroTexto) ||
+                    t.Descricao.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                    t.Categoria.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(t => t.Data);
+
+    // ──────────────────────────────────────────────
+    // KPIs
+    // ──────────────────────────────────────────────
+    private decimal totalSaidas    => TransacoesMes.Where(t => t.Tipo == "Saída").Sum(t => Math.Abs(t.Valor));
+    private decimal totalEntradas  => TransacoesMes.Where(t => t.Tipo == "Entrada").Sum(t => Math.Abs(t.Valor));
+    private decimal saldoLiquido   => totalEntradas - totalSaidas;
+    private int     categoriasAtivas => resumoPorCategoria.Count;
+    private decimal gastosPessoais => TransacoesMes.Where(t => t.Tipo == "Saída" && t.EhPessoal).Sum(t => Math.Abs(t.Valor));
+    private decimal gastosBusiness => TransacoesMes.Where(t => t.Tipo == "Saída" && !t.EhPessoal).Sum(t => Math.Abs(t.Valor));
+    private double  porcentagemPessoal => totalSaidas > 0 ? (double)(gastosPessoais / totalSaidas) * 100 : 0;
+    private double  porcentagemBusiness => totalSaidas > 0 ? (double)(gastosBusiness / totalSaidas) * 100 : 0;
+
+    // ──────────────────────────────────────────────
+    // Agrupamento por categoria
+    // ──────────────────────────────────────────────
+    private List<ResumoCategoria> resumoPorCategoria => TransacoesMes
+        .Where(t => t.Tipo == "Saída")
+        .GroupBy(t => t.Categoria)
+        .Select(g => new ResumoCategoria
+        {
+            Categoria   = g.Key,
+            TotalSaidas = g.Sum(t => Math.Abs(t.Valor)),
+            Quantidade  = g.Count()
+        })
+        .OrderByDescending(x => x.TotalSaidas)
+        .ToList();
+
+    private List<Transacao> top5Gastos => TransacoesMes
+        .Where(t => t.Tipo == "Saída")
+        .OrderByDescending(t => Math.Abs(t.Valor))
+        .Take(5)
+        .ToList();
+
+    // ──────────────────────────────────────────────
+    // Ciclo de vida
+    // ──────────────────────────────────────────────
+    protected override async Task OnInitializedAsync() => await Carregar();
+
+    private async Task OnMesChanged(int novoMes)
+    {
+        mesSelecionado = novoMes;
+        StateHasChanged();
+    }
+
+    private async Task OnPessoaChanged(string novaPessoa)
+    {
+        pessoaSelecionada = novaPessoa;
+        StateHasChanged();
+    }
+
+    private async Task Carregar()
+    {
+        carregando = true;
+        try
+        {
+            var client = ClientFactory.CreateClient("ClientesAPI");
+            var eu    = await client.GetFromJsonAsync<List<Transacao>>("api/transacoes/Eu") ?? new();
+            var dela  = await client.GetFromJsonAsync<List<Transacao>>("api/transacoes/Namorada") ?? new();
+            todasTransacoes = eu.Concat(dela).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao carregar dados: {ex.Message}", Severity.Error);
+            todasTransacoes = new();
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    // Helpers visuais
+    // ──────────────────────────────────────────────
+    private static string GetCorCategoria(string categoria) => categoria switch
+    {
+        "Alimentação"   => "#e65100",
+        "Transporte"    => "#1565c0",
+        "Moradia"       => "#2e7d32",
+        "Saúde"         => "#c62828",
+        "Educação"      => "#6a1b9a",
+        "Lazer"         => "#f57f17",
+        "Vestuário"     => "#ad1457",
+        "Investimento"  => "#00695c",
+        "Receita"       => "#1b5e20",
+        "Importação CSV"=> "#424242",
+        _               => "#455a64"
+    };
+
+    private static string GetIconeCategoria(string categoria) => categoria switch
+    {
+        "Alimentação"   => Icons.Material.Filled.Restaurant,
+        "Transporte"    => Icons.Material.Filled.DirectionsCar,
+        "Moradia"       => Icons.Material.Filled.Home,
+        "Saúde"         => Icons.Material.Filled.LocalHospital,
+        "Educação"      => Icons.Material.Filled.School,
+        "Lazer"         => Icons.Material.Filled.SportsEsports,
+        "Vestuário"     => Icons.Material.Filled.Checkroom,
+        "Investimento"  => Icons.Material.Filled.TrendingUp,
+        "Receita"       => Icons.Material.Filled.AttachMoney,
+        _               => Icons.Material.Filled.Category
+    };
+
+    private static string GetCorRanking(int posicao) => posicao switch
+    {
+        1 => "#f44336",
+        2 => "#ff7043",
+        3 => "#ffa726",
+        4 => "#78909c",
+        _ => "#b0bec5"
+    };
+
+    // ──────────────────────────────────────────────
+    // View Model local
+    // ──────────────────────────────────────────────
+    private class ResumoCategoria
+    {
+        public string  Categoria   { get; set; } = string.Empty;
+        public decimal TotalSaidas { get; set; }
+        public int     Quantidade  { get; set; }
+    }
+}

@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace MinhaVidaDashboard.Models
 {
     public class Meta

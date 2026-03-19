@@ -1,5 +1,4 @@
 ﻿using MudBlazor;
-using System.Runtime.CompilerServices;
 
 namespace MinhaVidaDashboard.Models
 {

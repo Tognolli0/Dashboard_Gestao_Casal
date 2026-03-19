@@ -3,135 +3,259 @@
 @using System.Globalization
 @inject IHttpClientFactory ClientFactory
 @inject ISnackbar Snackbar
+@inject MinhaVidaDashboard.Services.CacheService Cache
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
-    @* CABEÇALHO COM SELETOR DE MÊS *@
+
+    @* CABEÇALHO *@
     <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-6">
-        <MudText Typo="Typo.h4" Color="Color.Secondary">Espaço dela</MudText>
+        <div>
+            <MudText Typo="Typo.h4" Color="Color.Secondary" Style="font-weight:800;">Espaço Dela ✨</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Dark">Vida pessoal & Secret Studio</MudText>
+        </div>
         <MudSpacer />
-        <MudSelect T="int" Label="Mês de Referência" @bind-Value="mesSelecionado" Variant="Variant.Outlined" Style="width:200px" AnchorOrigin="Origin.BottomCenter">
-            <MudSelectItem T="int" Value="1">Janeiro</MudSelectItem>
-            <MudSelectItem T="int" Value="2">Fevereiro</MudSelectItem>
-            <MudSelectItem T="int" Value="3">Março</MudSelectItem>
-            <MudSelectItem T="int" Value="4">Abril</MudSelectItem>
-            <MudSelectItem T="int" Value="5">Maio</MudSelectItem>
-            <MudSelectItem T="int" Value="6">Junho</MudSelectItem>
-            <MudSelectItem T="int" Value="7">Julho</MudSelectItem>
-            <MudSelectItem T="int" Value="8">Agosto</MudSelectItem>
-            <MudSelectItem T="int" Value="9">Setembro</MudSelectItem>
-            <MudSelectItem T="int" Value="10">Outubro</MudSelectItem>
-            <MudSelectItem T="int" Value="11">Novembro</MudSelectItem>
-            <MudSelectItem T="int" Value="12">Dezembro</MudSelectItem>
+        <MudSelect T="int" Label="Mês de Referência" @bind-Value="mesSelecionado"
+                   Variant="Variant.Outlined" Style="width:200px" AnchorOrigin="Origin.BottomCenter">
+            @foreach (var (num, nome) in Enumerable.Range(1, 12).Select(m => (m, new DateTime(2000, m, 1).ToString("MMMM", new CultureInfo("pt-BR")))))
+            {
+                <MudSelectItem T="int" Value="@num">@nome</MudSelectItem>
+            }
         </MudSelect>
     </MudStack>
 
-    @* ABAS INVERTIDAS: PESSOAL PRIMEIRO *@
+    @* Cards de resumo do mês *@
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2"
+                      Style="border-radius:16px; border-left:4px solid #4caf50;">
+                <MudText Typo="Typo.caption" Style="color:#4caf50; font-weight:700;">ENTRADAS DO MÊS</MudText>
+                <MudText Typo="Typo.h6" Style="font-weight:900; color:#2e7d32;">@entradasMes.ToString("C")</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2"
+                      Style="border-radius:16px; border-left:4px solid #f44336;">
+                <MudText Typo="Typo.caption" Style="color:#f44336; font-weight:700;">SAÍDAS DO MÊS</MudText>
+                <MudText Typo="Typo.h6" Style="font-weight:900; color:#c62828;">@saidasMes.ToString("C")</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="2"
+                      Style="@($"border-radius:16px; border-left:4px solid {(saldoMes >= 0 ? "#E91E63" : "#ff9800")};")">
+                <MudText Typo="Typo.caption" Style="font-weight:700;">SALDO DO MÊS</MudText>
+                <MudText Typo="Typo.h6" Style="@($"font-weight:900; color:{(saldoMes >= 0 ? "#c2185b" : "#e65100")};")">
+                    @saldoMes.ToString("C")
+                </MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @* Abas *@
     <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" ChildContentClass="pa-6" Color="Color.Secondary">
-        
+
         @* --- ABA 1: VIDA PESSOAL --- *@
         <MudTabPanel Text="Vida Pessoal 🌸" Icon="@Icons.Material.Filled.Favorite">
-            <MudAlert Severity="Severity.Normal" Variant="Variant.Outlined" Class="mb-4">
-                Gastos pessoais e lazer (@CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(mesSelecionado)).
-            </MudAlert>
-            
-            <MudTable Items="@transacoesDela.Where(t => t.Data.Month == mesSelecionado && t.EhPessoal == true)" Hover="true" Dense="true" Elevation="0">
+            <MudTable Items="@TransacoesFiltradas(true)" Hover="true" Dense="true" Elevation="0" Loading="@carregando">
                 <HeaderContent>
                     <MudTh>Data</MudTh>
                     <MudTh>Descrição</MudTh>
-                    <MudTh>Valor</MudTh>
+                    <MudTh>Categoria</MudTh>
+                    <MudTh Style="text-align:right">Valor</MudTh>
+                    <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.Data.ToShortDateString()</MudTd>
                     <MudTd>@context.Descricao</MudTd>
-                    @* Lógica de cor dinâmica: Verde para Entrada, Vermelho para Saída *@
-                    <MudTd Style="@(context.Tipo == "Entrada" ? "color:#2e7d32; font-weight:bold" : "color:#d32f2f; font-weight:bold")">
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">@context.Categoria</MudChip>
+                    </MudTd>
+                    <MudTd Style="@($"text-align:right; {(context.Tipo == "Entrada" ? "color:#2e7d32" : "color:#d32f2f")}; font-weight:bold")">
                         @((context.Tipo == "Saída" && context.Valor > 0 ? -context.Valor : context.Valor).ToString("C"))
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                       Color="Color.Error" OnClick="@(() => ExcluirTransacao(context))" />
                     </MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
                     <MudText>Nenhum gasto pessoal lançado este mês.</MudText>
                 </NoRecordsContent>
+                <FooterContent>
+                    <MudTd colspan="5">
+                        <MudText Typo="Typo.body2" Class="pa-2" Style="text-align:right; font-weight:700;">
+                            Total: @TransacoesFiltradas(true).Sum(t => t.Tipo == "Entrada" ? (double)t.Valor : -(double)Math.Abs(t.Valor)).ToString("C")
+                        </MudText>
+                    </MudTd>
+                </FooterContent>
             </MudTable>
         </MudTabPanel>
 
-        @* --- ABA 2: STUDIO (NEGÓCIO) --- *@
-        <MudTabPanel Text="Secret Studio ✨" Icon="@Icons.Material.Filled.Store">
-            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
-                Faturamento e despesas exclusivas do Secret Studio.
-            </MudAlert>
-            
-            <MudTable Items="@transacoesDela.Where(t => t.Data.Month == mesSelecionado && t.EhPessoal == false)" Hover="true" Dense="true" Elevation="0">
+        @* --- ABA 2: SECRET STUDIO --- *@
+        <MudTabPanel Text="Secret Studio 💄" Icon="@Icons.Material.Filled.Store">
+            <MudTable Items="@TransacoesFiltradas(false)" Hover="true" Dense="true" Elevation="0" Loading="@carregando">
                 <HeaderContent>
                     <MudTh>Data</MudTh>
                     <MudTh>Descrição</MudTh>
-                    <MudTh>Valor</MudTh>
+                    <MudTh>Categoria</MudTh>
+                    <MudTh Style="text-align:right">Valor</MudTh>
+                    <MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.Data.ToShortDateString()</MudTd>
                     <MudTd>@context.Descricao</MudTd>
-                    <MudTd Style="@(context.Tipo == "Entrada" ? "color:#2e7d32; font-weight:bold" : "color:#d32f2f; font-weight:bold")">
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@context.Categoria</MudChip>
+                    </MudTd>
+                    <MudTd Style="@($"text-align:right; {(context.Tipo == "Entrada" ? "color:#2e7d32" : "color:#d32f2f")}; font-weight:bold")">
                         @((context.Tipo == "Saída" && context.Valor > 0 ? -context.Valor : context.Valor).ToString("C"))
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                       Color="Color.Error" OnClick="@(() => ExcluirTransacao(context))" />
                     </MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
                     <MudText>Nenhum lançamento do Studio para este mês.</MudText>
                 </NoRecordsContent>
+                <FooterContent>
+                    <MudTd colspan="5">
+                        <MudText Typo="Typo.body2" Class="pa-2" Style="text-align:right; font-weight:700;">
+                            Total: @TransacoesFiltradas(false).Sum(t => t.Tipo == "Entrada" ? (double)t.Valor : -(double)Math.Abs(t.Valor)).ToString("C")
+                        </MudText>
+                    </MudTd>
+                </FooterContent>
             </MudTable>
         </MudTabPanel>
 
     </MudTabs>
 
-    @* FORMULÁRIO DE LANÇAMENTO *@
-    <MudPaper Class="pa-6 mt-6" Elevation="4" Style="border-radius: 12px;">
+    @* Formulário de lançamento *@
+    <MudPaper Class="pa-6 mt-6" Elevation="4" Style="border-radius:12px;">
+        <MudText Typo="Typo.subtitle1" Class="mb-4" Style="font-weight:700;">Novo Lançamento</MudText>
         <MudGrid>
             <MudItem xs="12" sm="3">
-                <MudTextField @bind-Value="novaTransacao.Descricao" Label="Descrição" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudTextField @bind-Value="novaTransacao.Descricao" Label="Descrição"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="12" sm="2">
-                <MudNumericField @bind-Value="novaTransacao.Valor" Label="Valor" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudNumericField @bind-Value="novaTransacao.Valor" Label="Valor"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" />
             </MudItem>
             <MudItem xs="12" sm="2">
-                <MudSelect @bind-Value="novaTransacao.Tipo" Label="Tipo" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelect @bind-Value="novaTransacao.Tipo" Label="Tipo"
+                           Variant="Variant.Outlined" Margin="Margin.Dense">
                     <MudSelectItem Value="@("Saída")">Saída (Gasto)</MudSelectItem>
                     <MudSelectItem Value="@("Entrada")">Entrada (Ganho)</MudSelectItem>
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" sm="3" Class="d-flex align-center">
-                <MudSwitch @bind-Value="novaTransacao.EhPessoal" Color="Color.Secondary" 
-                           Label="@(novaTransacao.EhPessoal ? "Destino: Pessoal 🏠" : "Destino: Studio 💄")" />
+            <MudItem xs="12" sm="2">
+                <MudSelect @bind-Value="novaTransacao.Categoria" Label="Categoria"
+                           Variant="Variant.Outlined" Margin="Margin.Dense">
+                    @foreach (var cat in categorias)
+                    {
+                        <MudSelectItem Value="@cat">@cat</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="1" Class="d-flex align-center">
+                <MudTooltip Text="@(novaTransacao.EhPessoal ? "Pessoal 🌸" : "Studio 💄")">
+                    <MudSwitch @bind-Value="novaTransacao.EhPessoal" Color="Color.Secondary" />
+                </MudTooltip>
             </MudItem>
             <MudItem xs="12" sm="2" Class="d-flex align-center">
-                <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="Salvar" Disabled="@processando">
-                    @if (processando) {
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true"
+                           OnClick="Salvar" Disabled="@processando">
+                    @if (processando)
+                    {
                         <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                    } else {
+                    }
+                    else
+                    {
                         <span>Lançar</span>
                     }
                 </MudButton>
             </MudItem>
         </MudGrid>
     </MudPaper>
+
 </MudContainer>
 
 @code {
     private List<Transacao> transacoesDela = new();
-    // Inicializado com EhPessoal = true para combinar com a primeira aba
-    private Transacao novaTransacao = new() { Responsavel = "Namorada", EhPessoal = true, Data = DateTime.Now };
+    private Transacao novaTransacao = new() { Responsavel = "Namorada", EhPessoal = true, Data = DateTime.Now, Tipo = "Saída", Categoria = "Geral" };
     private int mesSelecionado = DateTime.Now.Month;
     private bool processando = false;
+    private bool carregando = false;
+
+    private static readonly List<string> categorias = new()
+    {
+        "Alimentação", "Transporte", "Moradia", "Saúde", "Educação",
+        "Lazer", "Vestuário", "Investimento", "Faturamento", "Geral", "Importação CSV"
+    };
+
+    private IEnumerable<Transacao> TransacoesMes =>
+        transacoesDela.Where(t => t.Data.Month == mesSelecionado && t.Data.Year == DateTime.Now.Year);
+
+    private decimal entradasMes => TransacoesMes.Where(t => t.Tipo == "Entrada").Sum(t => Math.Abs(t.Valor));
+    private decimal saidasMes => TransacoesMes.Where(t => t.Tipo == "Saída").Sum(t => Math.Abs(t.Valor));
+    private decimal saldoMes => entradasMes - saidasMes;
+
+    private IEnumerable<Transacao> TransacoesFiltradas(bool pessoal) =>
+        TransacoesMes.Where(t => t.EhPessoal == pessoal);
 
     protected override async Task OnInitializedAsync() => await Carregar();
 
-    private async Task Carregar()
+    private async Task Carregar(bool forcar = false)
     {
-        try {
-            var client = ClientFactory.CreateClient("ClientesAPI");
-            transacoesDela = new List<Transacao>(); // Limpa para forçar o refresh
-            var resultado = await client.GetFromJsonAsync<List<Transacao>>("api/transacoes/Namorada");
-            if (resultado != null) transacoesDela = resultado;
+        // Tenta usar cache primeiro
+        var cached = forcar ? null : Cache.ObterCache();
+        if (cached != null)
+        {
+            transacoesDela = cached.TransacoesDela;
             StateHasChanged();
-        } catch (Exception) {
-            Snackbar.Add("Erro ao carregar dados", Severity.Error);
+            return;
+        }
+
+        carregando = true;
+        try
+        {
+            var client = ClientFactory.CreateClient("ClientesAPI");
+            var resultado = await client.GetFromJsonAsync<List<Transacao>>("api/transacoes/Namorada");
+            transacoesDela = resultado ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro ao carregar dados: {ex.Message}", Severity.Error);
+            transacoesDela = new();
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ExcluirTransacao(Transacao transacao)
+    {
+        try
+        {
+            var client = ClientFactory.CreateClient("ClientesAPI");
+            var response = await client.DeleteAsync($"api/transacoes/{transacao.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Cache.Invalidar();
+                await Carregar(forcar: true);
+                Snackbar.Add("Transação removida.", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add("Erro ao remover transação.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
         }
     }
 
@@ -143,35 +267,39 @@
         try
         {
             var client = ClientFactory.CreateClient("ClientesAPI");
-        
-            // Garante que o valor seja positivo para Entradas e negativo para Saídas no Banco
-            if (novaTransacao.Tipo == "Saída")
-                novaTransacao.Valor = -Math.Abs(novaTransacao.Valor);
-            else
-                novaTransacao.Valor = Math.Abs(novaTransacao.Valor);
 
-            // Ajusta a data para o mês selecionado
+            novaTransacao.Valor = novaTransacao.Tipo == "Saída"
+                ? -Math.Abs(novaTransacao.Valor)
+                : Math.Abs(novaTransacao.Valor);
+
             novaTransacao.Data = new DateTime(DateTime.Now.Year, mesSelecionado, 1);
-        
+
             var response = await client.PostAsJsonAsync("api/transacoes", novaTransacao);
-        
+
             if (response.IsSuccessStatusCode)
             {
-                bool estadoAnterior = novaTransacao.EhPessoal;
+                var contexto = (ehPessoal: novaTransacao.EhPessoal, categoria: novaTransacao.Categoria);
                 novaTransacao = new Transacao
                 {
                     Responsavel = "Namorada",
-                    EhPessoal = estadoAnterior,
+                    EhPessoal = contexto.ehPessoal,
+                    Categoria = contexto.categoria,
                     Data = DateTime.Now,
-                    Tipo = "Saída" // Reseta para o padrão
+                    Tipo = "Saída"
                 };
-                await Carregar();
+                Cache.Invalidar();
+                await Carregar(forcar: true);
                 Snackbar.Add("Lançamento realizado! 💎", Severity.Success);
+            }
+            else
+            {
+                var erro = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Erro ao salvar: {erro}", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erro ao salvar: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Erro inesperado: {ex.Message}", Severity.Error);
         }
         finally
         {
