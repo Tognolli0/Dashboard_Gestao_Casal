@@ -1,15 +1,15 @@
 [build]
-  # Entra na pasta do Dashboard para compilar
+  # Entra na pasta do Dashboard
   base = "MinhaVidaDashboard"
   
-  # Comando de Build: publica especificamente o projeto do Dashboard
+  # Comando ajustado: Publica o arquivo .csproj DIRETAMENTE (evita o erro da Solution)
   command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o publish"
   
-  # Como o 'base' é MinhaVidaDashboard, o Netlify busca os arquivos aqui:
+  # Pasta de saída correta
   publish = "publish/wwwroot"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  force = false	
+  force = false
