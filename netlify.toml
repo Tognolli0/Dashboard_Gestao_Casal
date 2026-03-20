@@ -1,6 +1,6 @@
 [build]
   # Entra na pasta onde está o código da API/Dashboard
-  base = "MinhaVidaAPI"
+  base = "Dashboard"
   
   # Instala o SDK 10 e publica o projeto
   command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish -c Release -o publish"
