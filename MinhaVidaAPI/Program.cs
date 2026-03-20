@@ -13,9 +13,11 @@ var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
     ?? builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string not found.");
 
+// Remove espaços extras que podem vir do copiar/colar do Render
+connectionString = connectionString.Trim();
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString)
-           .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+    options.UseNpgsql(connectionString));
 // --- FIM DA CONFIGURAÇÃO ---
 
 builder.Services.AddResponseCompression(options =>
