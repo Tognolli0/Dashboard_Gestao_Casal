@@ -12,7 +12,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddHttpClient("ClientesAPI", client =>
 {
-    client.BaseAddress = new Uri("http://127.0.0.1:5163/");
+    client.BaseAddress = new Uri("https://always-together-api.onrender.com/");
     client.Timeout = TimeSpan.FromSeconds(15);
 });
 

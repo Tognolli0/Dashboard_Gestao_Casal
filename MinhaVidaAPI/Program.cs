@@ -31,9 +31,13 @@ builder.Services.AddHostedService<ResumoWorker>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Livre", policy =>
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader());
+        policy.WithOrigins(
+            "https://localhost:7065",
+            "http://localhost:5000",
+            "https://always-together.netlify.app"
+        )
+        .AllowAnyMethod()
+        .AllowAnyHeader());
 });
 
 builder.Services.AddControllers();
