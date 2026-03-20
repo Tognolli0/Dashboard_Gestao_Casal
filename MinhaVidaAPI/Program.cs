@@ -31,7 +31,7 @@ builder.Services.AddSingleton<WhatsAppService>();
 builder.Services.AddSingleton<OCRService>();
 builder.Services.AddHostedService<ResumoWorker>();
 
-// 4. CORS — só origens sem barra final
+// 4. CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Livre", policy =>
@@ -42,8 +42,8 @@ builder.Services.AddCors(options =>
                 "https://always-together.netlify.app"
             )
             .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials());  // ← adicione isso
+            .AllowAnyHeader());
+    // Removido AllowCredentials() — incompatível com AllowAnyHeader em alguns cenários
 });
 
 builder.Services.AddControllers();
@@ -81,19 +81,18 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// 7. Pipeline de Middleware — ordem é crítica
+// 7. Pipeline de Middleware — ordem crítica
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "MinhaVida API v1");
-    c.RoutePrefix = string.Empty; // Swagger como página inicial
+    c.RoutePrefix = string.Empty;
 });
 
 app.UseResponseCompression();
-app.UseRouting();        // ← adicione essa linha
 
-// CORS obrigatoriamente antes de Authorization e MapControllers
-app.UseCors("Livre");   // ← deve vir depois de UseRouting
+// CORS deve vir antes de UseAuthorization e MapControllers
+app.UseCors("Livre");
 
 app.UseAuthorization();
 app.MapControllers();
