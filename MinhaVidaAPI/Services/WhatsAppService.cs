@@ -18,20 +18,29 @@ namespace MinhaVidaAPI.Services
             var token = _config["Twilio:AuthToken"];
             var from = _config["Twilio:FromPhoneNumber"];
 
-            // Pega os dois números do appsettings
-            var numeros = new List<string>
+            // Inicializa a lista e adiciona apenas se não for nulo
+            var numeros = new List<string>();
+
+            var meuNumero = _config["Twilio:MeuNumero"];
+            var numeroDela = _config["Twilio:NumeroDela"];
+
+            if (!string.IsNullOrEmpty(meuNumero)) numeros.Add(meuNumero);
+            if (!string.IsNullOrEmpty(numeroDela)) numeros.Add(numeroDela);
+
+            // Verifica se as credenciais essenciais do Twilio existem
+            if (string.IsNullOrEmpty(sid) || string.IsNullOrEmpty(token) || string.IsNullOrEmpty(from))
             {
-                _config["Twilio:MeuNumero"],
-                _config["Twilio:NumeroDela"]
-            };
+                // Log ou retorno silencioso se o serviço não estiver configurado
+                return;
+            }
 
             TwilioClient.Init(sid, token);
 
-            foreach (var numero in numeros.Where(n => !string.IsNullOrEmpty(n)))
+            foreach (var numero in numeros)
             {
                 await MessageResource.CreateAsync(
                     body: mensagem,
-                    from: new Twilio.Types.PhoneNumber(from),
+                    from: new Twilio.Types.PhoneNumber($"whatsapp:{from}"),
                     to: new Twilio.Types.PhoneNumber($"whatsapp:{numero}")
                 );
             }
