@@ -7,36 +7,12 @@ using System.IO.Compression;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- INÍCIO DA CONFIGURAÇÃO DE CONEXÃO CORRIGIDA ---
-var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-string connectionString;
-
-if (string.IsNullOrEmpty(databaseUrl))
-{
-    [cite_start]// Local: Usa a string do appsettings.json [cite: 361]
-    // Certifique-se de remover "No IP version preference" do seu appsettings.json manual
-    connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-}
-else
-{
-    // Render/Produção: Converte a URL postgres:// para o formato Npgsql
-    // Isso evita o erro de "KeyNotFoundException" e "ArgumentException"
-    var databaseUri = new Uri(databaseUrl);
-    var userInfo = databaseUri.UserInfo.Split(':');
-
-    connectionString = $"Host={databaseUri.Host};" +
-                       $"Port={databaseUri.Port};" +
-                       $"Database={databaseUri.PathAndQuery.TrimStart('/')};" +
-                       $"Username={userInfo[0]};" +
-                       $"Password={userInfo[1]};" +
-                       $"SSL Mode=Require;Trust Server Certificate=true;";
-}
+// 1. PostgreSQL — funciona local e na nuvem
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString)
            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
-// --- FIM DA CONFIGURAÇÃO DE CONEXÃO ---
 
 // 2. Compressão de resposta
 builder.Services.AddResponseCompression(options =>
@@ -70,11 +46,10 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// 5. Migrações automáticas
+// 5. Cria tabelas automaticamente no PostgreSQL
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    // No PostgreSQL em produção, EnsureCreated cria as tabelas se não existirem
     db.Database.EnsureCreated();
 }
 
