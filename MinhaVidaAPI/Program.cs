@@ -35,13 +35,15 @@ builder.Services.AddHostedService<ResumoWorker>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Livre", policy =>
-        policy.WithOrigins(
-            "https://localhost:7065",
-            "http://localhost:5163",
-            "https://always-together.netlify.app"
-        )
-        .AllowAnyMethod()
-        .AllowAnyHeader());
+        policy
+            .WithOrigins(
+                "https://localhost:7065",
+                "http://localhost:5163",
+                "https://always-together.netlify.app"
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials());  // ← adicione isso
 });
 
 builder.Services.AddControllers();
@@ -88,9 +90,10 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseResponseCompression();
+app.UseRouting();        // ← adicione essa linha
 
 // CORS obrigatoriamente antes de Authorization e MapControllers
-app.UseCors("Livre");
+app.UseCors("Livre");   // ← deve vir depois de UseRouting
 
 app.UseAuthorization();
 app.MapControllers();
