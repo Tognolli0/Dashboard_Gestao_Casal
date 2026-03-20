@@ -13,6 +13,11 @@ namespace MinhaVidaAPI.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // Nomes de tabela em lowercase — obrigatório para PostgreSQL
+            modelBuilder.Entity<Transacao>().ToTable("transacoes");
+            modelBuilder.Entity<Meta>().ToTable("metas");
+            modelBuilder.Entity<Desejo>().ToTable("desejos");
+
             // Índices nas colunas mais consultadas
             modelBuilder.Entity<Transacao>(entity =>
             {
