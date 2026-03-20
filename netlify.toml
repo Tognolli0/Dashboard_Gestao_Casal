@@ -1,18 +1,15 @@
 [build]
-  # 1. Aponta para a pasta do Front-end (Dashboard)
+  # Entra na pasta do Dashboard para compilar
   base = "MinhaVidaDashboard"
   
-  # 2. Comando de Build: instalamos o SDK 10 e publicamos na pasta 'dist'
-  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish -c Release -o dist"
+  # Comando de Build: publica especificamente o projeto do Dashboard
+  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o publish"
   
-  # 3. O Netlify deve buscar os arquivos dentro de 'dist/wwwroot'
-  # Como o 'base' é MinhaVidaDashboard, o caminho abaixo é relativo a ele.
-  publish = "dist/wwwroot"
+  # Como o 'base' é MinhaVidaDashboard, o Netlify busca os arquivos aqui:
+  publish = "publish/wwwroot"
 
 [[redirects]]
-  # Esta regra garante que rotas do Blazor funcionem, 
-  # mas o 'force = false' impede que ela sobrescreva arquivos reais (como o .js)
   from = "/*"
   to = "/index.html"
   status = 200
-  force = false
+  force = false	
