@@ -1,9 +1,12 @@
 [build]
   base = "MinhaVidaDashboard"
   command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish -c Release -o publish"
-  publish = "/publish/wwwroot"
+  # Ajuste importante: verifique se não há uma pasta redundante aqui
+  publish = "publish/wwwroot"
 
 [[redirects]]
+  # Esta regra só deve ser aplicada se o arquivo real não for encontrado
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
