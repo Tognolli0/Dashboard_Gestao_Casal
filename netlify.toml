@@ -1,11 +1,8 @@
 [build]
-  # Entra na pasta do Dashboard
   base = "MinhaVidaDashboard"
-  
-  # Comando ajustado: Publica o arquivo .csproj DIRETAMENTE (evita o erro da Solution)
   command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o publish"
   
-  # Pasta de saída correta
+  # ESTA É A MUDANÇA CRUCIAL:
   publish = "publish/wwwroot"
 
 [[redirects]]
