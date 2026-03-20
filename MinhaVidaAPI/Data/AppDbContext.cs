@@ -13,12 +13,12 @@ namespace MinhaVidaAPI.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Índices nas colunas mais consultadas — acelera os WHERE e ORDER BY
+            // Índices nas colunas mais consultadas
             modelBuilder.Entity<Transacao>(entity =>
             {
-                entity.HasIndex(t => t.Responsavel);           // WHERE Responsavel = 'Eu'
-                entity.HasIndex(t => t.Data);                  // ORDER BY Data
-                entity.HasIndex(t => new { t.Responsavel, t.Data }); // consulta combinada
+                entity.HasIndex(t => t.Responsavel);
+                entity.HasIndex(t => t.Data);
+                entity.HasIndex(t => new { t.Responsavel, t.Data });
             });
         }
     }

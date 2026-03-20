@@ -7,13 +7,14 @@ using System.IO.Compression;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. SQLite otimizado com WAL mode (Write-Ahead Logging = leituras mais rápidas)
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=minhavida.db;Cache=Shared")
-           .EnableSensitiveDataLogging(false)
-           .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)); // NoTracking por padrão
+// 1. PostgreSQL — funciona local e na nuvem
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// 2. Compressão de resposta (reduz tamanho do JSON em ~70%)
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString)
+           .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+
+// 2. Compressão de resposta
 builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
@@ -45,32 +46,11 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// 5. Banco + índices
+// 5. Cria tabelas automaticamente no PostgreSQL
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
-
-    // Ativa pragmas de performance no SQLite
-    // Cada PRAGMA em conexão separada para evitar conflito com transações
-    var conn = db.Database.GetDbConnection();
-    await conn.OpenAsync();
-    using (var cmd = conn.CreateCommand())
-    {
-        // journal_mode e synchronous DEVEM ser executados fora de transação
-        cmd.CommandText = "PRAGMA journal_mode=WAL;";
-        await cmd.ExecuteNonQueryAsync();
-
-        cmd.CommandText = "PRAGMA synchronous=NORMAL;";
-        await cmd.ExecuteNonQueryAsync();
-
-        cmd.CommandText = "PRAGMA cache_size=-64000;";
-        await cmd.ExecuteNonQueryAsync();
-
-        cmd.CommandText = "PRAGMA temp_store=MEMORY;";
-        await cmd.ExecuteNonQueryAsync();
-    }
-    await conn.CloseAsync();
 }
 
 // 6. Pipeline
@@ -80,7 +60,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseResponseCompression(); // deve vir antes do UseCors
+app.UseResponseCompression();
 app.UseCors("Livre");
 app.UseAuthorization();
 app.MapControllers();
