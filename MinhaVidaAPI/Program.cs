@@ -77,6 +77,9 @@ using (var scope = app.Services.CreateScope())
 }
 
 // 7. Pipeline de Middleware — ordem crítica
+// CORS deve ser o PRIMEIRO middleware
+app.UseCors("Livre");
+
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -84,10 +87,8 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = string.Empty;
 });
 
+// Compressão DEPOIS do CORS
 app.UseResponseCompression();
-
-// CORS deve vir antes de UseAuthorization e MapControllers
-app.UseCors("Livre");
 
 app.UseAuthorization();
 app.MapControllers();
