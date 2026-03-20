@@ -1,12 +1,12 @@
 [build]
-  # Entra na pasta do projeto
-  base = "MinhaVidaAPI"
+  # 1. Define a pasta onde está o projeto Blazor (o frontend)
+  base = "MinhaVidaDashboard"
   
-  # Instala o SDK 10 e executa o publish usando o caminho completo do executável
+  # 2. Comando para instalar o SDK 10 e publicar
   command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish -c Release -o publish"
   
-  # O Netlify já estará dentro de 'MinhaVidaAPI' por causa do 'base' acima, 
-  # então o publish deve ser relativo a essa pasta.
+  # 3. Define onde o Netlify vai buscar os arquivos finais. 
+  # Importante: Como definimos 'base' acima, este caminho é relativo à pasta MinhaVidaDashboard
   publish = "publish/wwwroot"
 
 [[redirects]]
