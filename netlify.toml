@@ -1,6 +1,6 @@
 [build]
   base = "MinhaVidaDashboard"
-  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet workload install wasm-tools && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o publish"
+  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet workload install wasm-tools && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o publish --no-incremental"
   publish = "publish/wwwroot"
 
 [[redirects]]
