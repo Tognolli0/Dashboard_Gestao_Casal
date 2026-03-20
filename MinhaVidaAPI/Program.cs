@@ -7,14 +7,12 @@ using System.IO.Compression;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. PostgreSQL — funciona local e na nuvem
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString)
            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
-// 2. Compressão de resposta
 builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
@@ -26,12 +24,10 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
 builder.Services.Configure<GzipCompressionProviderOptions>(options =>
     options.Level = CompressionLevel.Fastest);
 
-// 3. Serviços
 builder.Services.AddSingleton<WhatsAppService>();
 builder.Services.AddSingleton<OCRService>();
 builder.Services.AddHostedService<ResumoWorker>();
 
-// 4. CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Livre", policy =>
@@ -46,14 +42,33 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// 5. Cria tabelas automaticamente no PostgreSQL
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
+    var retries = 5;
+    while (retries > 0)
+    {
+        try
+        {
+            Console.WriteLine("Tentando conectar ao banco de dados...");
+            db.Database.EnsureCreated();
+            Console.WriteLine("Banco de dados pronto.");
+            break;
+        }
+        catch (Exception ex)
+        {
+            retries--;
+            Console.WriteLine($"Falha na conexão com o banco. Tentativas restantes: {retries}. Erro: {ex.Message}");
+            if (retries == 0)
+            {
+                Console.WriteLine("Não foi possível conectar ao banco após todas as tentativas. Encerrando.");
+                throw;
+            }
+            await Task.Delay(4000);
+        }
+    }
 }
 
-// 6. Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
