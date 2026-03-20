@@ -1,6 +1,7 @@
 [build]
-  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 && $HOME/.dotnet/dotnet publish MinhaVidaDashboard/MinhaVidaDashboard.csproj -c Release -o publish"
-  publish = "publish/wwwroot"
+  base = "MinhaVidaDashboard"
+  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 && $HOME/.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o publish"
+  publish = "MinhaVidaDashboard/publish/wwwroot"
 
 [build.environment]
   DOTNET_ROOT = "/opt/buildhome/.dotnet"
