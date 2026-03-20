@@ -36,14 +36,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Livre", policy =>
         policy
-            .WithOrigins(
-                "https://localhost:7065",
-                "http://localhost:5163",
-                "https://always-together.netlify.app"
-            )
+            .AllowAnyOrigin()
             .AllowAnyMethod()
             .AllowAnyHeader());
-    // Removido AllowCredentials() — incompatível com AllowAnyHeader em alguns cenários
 });
 
 builder.Services.AddControllers();
