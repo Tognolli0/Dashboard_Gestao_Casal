@@ -1,16 +1,15 @@
 [build]
-  # Entra na pasta onde está o código da API/Dashboard
-  base = "Dashboard"
+  # Entra na pasta do projeto
+  base = "MinhaVidaAPI"
   
-  # Instala o SDK 10 e publica o projeto
+  # Instala o SDK 10 e executa o publish usando o caminho completo do executável
   command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish -c Release -o publish"
   
-  # Define a pasta de saída correta para o Netlify servir os arquivos
+  # O Netlify já estará dentro de 'MinhaVidaAPI' por causa do 'base' acima, 
+  # então o publish deve ser relativo a essa pasta.
   publish = "publish/wwwroot"
 
 [[redirects]]
-  # Resolve o erro de SyntaxError: Unexpected token '<' ao recarregar
   from = "/*"
   to = "/index.html"
   status = 200
-  force = false
