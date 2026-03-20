@@ -1,7 +1,13 @@
 [build]
   base = "MinhaVidaDashboard"
   command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 && $HOME/.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o publish"
-  publish = "/publish/wwwroot"
+  publish = "publish/wwwroot"
 
 [build.environment]
   DOTNET_ROOT = "/opt/buildhome/.dotnet"
+  PATH = "/opt/buildhome/.dotnet:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
