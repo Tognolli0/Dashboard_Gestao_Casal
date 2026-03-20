@@ -272,8 +272,9 @@
                 ? -Math.Abs(novaTransacao.Valor)
                 : Math.Abs(novaTransacao.Valor);
 
-            novaTransacao.Data = new DateTime(DateTime.Now.Year, mesSelecionado, 1);
-
+            // Mantém o dia de hoje, apenas garante o mês correto
+            novaTransacao.Data = new DateTime(DateTime.Now.Year, mesSelecionado,
+                Math.Min(DateTime.Now.Day, DateTime.DaysInMonth(DateTime.Now.Year, mesSelecionado)));
             var response = await client.PostAsJsonAsync("api/transacoes", novaTransacao);
 
             if (response.IsSuccessStatusCode)

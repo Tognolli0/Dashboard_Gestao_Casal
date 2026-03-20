@@ -21,20 +21,22 @@ namespace MinhaVidaAPI.Controllers
         [HttpGet("resumo")]
         public async Task<IActionResult> GetResumo()
         {
-            // Executa as 4 queries em paralelo no banco
-            var taskTransacoesEu = _context.Transacoes.AsNoTracking().Where(t => t.Responsavel == "Eu").ToListAsync();
-            var taskTransacoesDela = _context.Transacoes.AsNoTracking().Where(t => t.Responsavel == "Namorada").ToListAsync();
-            var taskMetas = _context.Metas.AsNoTracking().ToListAsync();
-            var taskDesejos = _context.Desejos.AsNoTracking().ToListAsync();
+            var transacoesEu = await _context.Transacoes
+                .AsNoTracking().Where(t => t.Responsavel == "Eu").ToListAsync();
 
-            await Task.WhenAll(taskTransacoesEu, taskTransacoesDela, taskMetas, taskDesejos);
+            var transacoesDela = await _context.Transacoes
+                .AsNoTracking().Where(t => t.Responsavel == "Namorada").ToListAsync();
+
+            var metas = await _context.Metas.AsNoTracking().ToListAsync();
+
+            var desejos = await _context.Desejos.AsNoTracking().ToListAsync();
 
             return Ok(new
             {
-                TransacoesEu = taskTransacoesEu.Result,
-                TransacoesDela = taskTransacoesDela.Result,
-                Metas = taskMetas.Result,
-                Desejos = taskDesejos.Result
+                TransacoesEu = transacoesEu,
+                TransacoesDela = transacoesDela,
+                Metas = metas,
+                Desejos = desejos
             });
         }
     }

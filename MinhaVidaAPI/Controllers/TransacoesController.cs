@@ -51,7 +51,7 @@ namespace MinhaVidaAPI.Controllers
         }
 
         // GET: api/transacoes/resumo
-        [HttpGet("resumo")]
+        [HttpGet("totais")]
         public async Task<IActionResult> GetResumo()
         {
             var transacoes = await _context.Transacoes.ToListAsync();

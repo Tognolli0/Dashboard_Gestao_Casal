@@ -155,12 +155,10 @@
                     </div>
                 </MudStack>
 
-                @* Gráfico de linha *@
                 <MudChart T="double" ChartType="ChartType.Line" Width="100%" Height="400px"
                           ChartSeries="@SeriesEvolucao" XAxisLabels="@mesesLabels"
                           ChartOptions="@_optionsEvolucao" LegendPosition="Position.Bottom" />
 
-                @* Cards de resumo por mês *@
                 <MudDivider Class="my-6" />
                 <MudText Typo="Typo.subtitle1" Style="font-weight:700; margin-bottom:16px;">Resumo por Mês</MudText>
                 <div style="overflow-x:auto;">
@@ -372,7 +370,6 @@
 
     private async Task CarregarTudo(bool forcarAtualizacao = false)
     {
-        // Se tem cache válido e não é forçado, usa cache — navegação instantânea
         var cached = forcarAtualizacao ? null : Cache.ObterCache();
         if (cached != null)
         {
@@ -393,7 +390,6 @@
             ListaMetas   = resumo.Metas   ?? new();
             ListaDesejos = resumo.Desejos ?? new();
 
-            // Salva no cache para próximas navegações
             Cache.SalvarCache(new MinhaVidaDashboard.Services.DashboardCache
             {
                 TransacoesEu   = eu,
@@ -439,9 +435,7 @@
             new() { Name = "Studio Dela",   Data = new double[] { Math.Max(0, saldoDelaBusiness) } }
         };
 
-        // Calcula evolução mensal acumulada
         CalcularEvolucao(eu, dela);
-
         StateHasChanged();
     }
 
@@ -449,20 +443,16 @@
     {
         var anoAtual = DateTime.Now.Year;
         var cultura  = new System.Globalization.CultureInfo("pt-BR");
-        var meses    = Enumerable.Range(1, 12).ToList();
 
-        // Para cada mês, calcula o saldo ACUMULADO até aquele mês
-        var dadosEu        = new double[12];
-        var dadosDela      = new double[12];
-        var dadosTotal     = new double[12];
-        var dadosPessoal   = new double[12];
-        var dadosBusiness  = new double[12];
+        var dadosEu       = new double[12];
+        var dadosDela     = new double[12];
+        var dadosTotal    = new double[12];
+        var dadosPessoal  = new double[12];
+        var dadosBusiness = new double[12];
 
         for (int i = 0; i < 12; i++)
         {
             int mes = i + 1;
-
-            // Acumulado: todas as transações até este mês inclusive
             var transEuAte   = eu.Where(t   => t.Data.Year == anoAtual && t.Data.Month <= mes).ToList();
             var transDelaAte = dela.Where(t => t.Data.Year == anoAtual && t.Data.Month <= mes).ToList();
 
@@ -473,7 +463,7 @@
             dadosBusiness[i] = SomarSaldo(transEuAte, false)  + SomarSaldo(transDelaAte, false);
         }
 
-        mesesLabels = meses
+        mesesLabels = Enumerable.Range(1, 12)
             .Select(m => new DateTime(anoAtual, m, 1).ToString("MMM", cultura))
             .ToArray();
 
@@ -486,27 +476,23 @@
             new() { Name = "Business", Data = dadosBusiness },
         };
 
-        // Crescimento = total acumulado do mês atual
         var mesAtual = DateTime.Now.Month - 1;
         crescimentoAno = dadosTotal[mesAtual];
 
-        // Tabela de resumo mensal
         resumoMensal = new List<ResumoMensal>();
         double totalAnterior = 0;
         for (int i = 0; i < DateTime.Now.Month; i++)
         {
-            var variacao = dadosTotal[i] - totalAnterior;
             resumoMensal.Add(new ResumoMensal
             {
-                NomeMes  = new DateTime(anoAtual, i + 1, 1).ToString("MMMM", cultura),
-                SaldoEu  = dadosEu[i],
+                NomeMes   = new DateTime(anoAtual, i + 1, 1).ToString("MMMM", cultura),
+                SaldoEu   = dadosEu[i],
                 SaldoDela = dadosDela[i],
-                Total    = dadosTotal[i],
-                Variacao = variacao
+                Total     = dadosTotal[i],
+                Variacao  = dadosTotal[i] - totalAnterior
             });
             totalAnterior = dadosTotal[i];
         }
-        // Mais recente primeiro
         resumoMensal.Reverse();
     }
 
@@ -519,7 +505,6 @@
         public double Variacao { get; set; }
     }
 
-    // ViewModel local para o endpoint unificado
     private class DashboardResumo
     {
         public List<Transacao> TransacoesEu   { get; set; } = new();
@@ -535,13 +520,23 @@
 
     private void AbrirModalAporte(Meta meta) { metaSelecionada = meta; valorAporte = 0; _modalAporteAberto = true; }
 
+    // ✅ CORREÇÃO: Cache.Invalidar() adicionado antes de CarregarTudo
     private async Task ConfirmarAporte()
     {
         if (valorAporte <= 0) return;
         var response = await ClientFactory.CreateClient("ClientesAPI")
             .PostAsJsonAsync($"api/metas/{metaSelecionada.Id}/aporte", valorAporte);
-        if (response.IsSuccessStatusCode) { _modalAporteAberto = false; await CarregarTudo(); Snackbar.Add("Aporte realizado! 🚀", Severity.Success); }
-        else Snackbar.Add("Erro ao realizar aporte.", Severity.Error);
+        if (response.IsSuccessStatusCode)
+        {
+            _modalAporteAberto = false;
+            Cache.Invalidar();
+            await CarregarTudo(forcarAtualizacao: true);
+            Snackbar.Add("Aporte realizado! 🚀", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Erro ao realizar aporte.", Severity.Error);
+        }
     }
 
     private void AbrirModalMeta() { novaMeta = new Meta(); _modalAberto = true; }
@@ -550,13 +545,32 @@
     {
         if (string.IsNullOrWhiteSpace(novaMeta.Titulo) || novaMeta.ValorObjetivo <= 0) return;
         var response = await ClientFactory.CreateClient("ClientesAPI").PostAsJsonAsync("api/metas", novaMeta);
-        if (response.IsSuccessStatusCode) { _modalAberto = false; Cache.Invalidar(); await CarregarTudo(forcarAtualizacao: true); Snackbar.Add("Meta cadastrada!", Severity.Success); }
+        if (response.IsSuccessStatusCode)
+        {
+            _modalAberto = false;
+            Cache.Invalidar();
+            await CarregarTudo(forcarAtualizacao: true);
+            Snackbar.Add("Meta cadastrada!", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Erro ao cadastrar meta.", Severity.Error);
+        }
     }
 
     private async Task ExcluirMeta(Meta meta)
     {
         var response = await ClientFactory.CreateClient("ClientesAPI").DeleteAsync($"api/metas/{meta.Id}");
-        if (response.IsSuccessStatusCode) { Cache.Invalidar(); await CarregarTudo(forcarAtualizacao: true); Snackbar.Add("Meta removida.", Severity.Info); }
+        if (response.IsSuccessStatusCode)
+        {
+            Cache.Invalidar();
+            await CarregarTudo(forcarAtualizacao: true);
+            Snackbar.Add("Meta removida.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add("Erro ao remover meta.", Severity.Error);
+        }
     }
 
     private void AbrirModalDesejo()
@@ -569,13 +583,32 @@
     {
         if (string.IsNullOrWhiteSpace(novoDesejo.Titulo)) return;
         var response = await ClientFactory.CreateClient("ClientesAPI").PostAsJsonAsync("api/desejos", novoDesejo);
-        if (response.IsSuccessStatusCode) { _modalDesejoAberto = false; Cache.Invalidar(); await CarregarTudo(forcarAtualizacao: true); Snackbar.Add("Sonho salvo!", Severity.Success); }
+        if (response.IsSuccessStatusCode)
+        {
+            _modalDesejoAberto = false;
+            Cache.Invalidar();
+            await CarregarTudo(forcarAtualizacao: true);
+            Snackbar.Add("Sonho salvo!", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Erro ao salvar desejo.", Severity.Error);
+        }
     }
 
     private async Task ExcluirDesejo(Desejo desejo)
     {
         var response = await ClientFactory.CreateClient("ClientesAPI").DeleteAsync($"api/desejos/{desejo.Id}");
-        if (response.IsSuccessStatusCode) { Cache.Invalidar(); await CarregarTudo(forcarAtualizacao: true); Snackbar.Add("Item removido!", Severity.Info); }
+        if (response.IsSuccessStatusCode)
+        {
+            Cache.Invalidar();
+            await CarregarTudo(forcarAtualizacao: true);
+            Snackbar.Add("Item removido!", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add("Erro ao remover item.", Severity.Error);
+        }
     }
 
     private string GetIcon(string nomeIcone) => nomeIcone switch
@@ -629,10 +662,21 @@
             }
 
             var response = await client.PostAsJsonAsync("api/transacoes/lote", novasTransacoes);
-            if (response.IsSuccessStatusCode) { Snackbar.Add($"{novasTransacoes.Count} transações importadas! 🚀", Severity.Success); Cache.Invalidar(); await CarregarTudo(forcarAtualizacao: true); }
-            else Snackbar.Add($"Erro: {await response.Content.ReadAsStringAsync()}", Severity.Error);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"{novasTransacoes.Count} transações importadas! 🚀", Severity.Success);
+                Cache.Invalidar();
+                await CarregarTudo(forcarAtualizacao: true);
+            }
+            else
+            {
+                Snackbar.Add($"Erro: {await response.Content.ReadAsStringAsync()}", Severity.Error);
+            }
         }
-        catch (Exception ex) { Snackbar.Add($"Erro: {ex.Message}", Severity.Error); }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task AnalisarComprovanteOCR(IBrowserFile file)
@@ -649,7 +693,11 @@
             form.Add(fileContent, "file", file.Name);
 
             var response = await client.PostAsync("api/ocr/analisar", form);
-            if (!response.IsSuccessStatusCode) { Snackbar.Add($"Erro: {await response.Content.ReadAsStringAsync()}", Severity.Error); return; }
+            if (!response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"Erro: {await response.Content.ReadAsStringAsync()}", Severity.Error);
+                return;
+            }
 
             var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
             string texto = "";
@@ -684,15 +732,31 @@
             };
             _modalOCRAberto = true;
         }
-        catch (Exception ex) { Snackbar.Add($"Erro: {ex.Message}", Severity.Error); }
-        finally { _loading = false; StateHasChanged(); }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erro: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task SalvarTransacaoOCR()
     {
         if (transacaoOCR.Tipo == "Saída" && transacaoOCR.Valor > 0) transacaoOCR.Valor *= -1;
         var response = await ClientFactory.CreateClient("ClientesAPI").PostAsJsonAsync("api/transacoes", transacaoOCR);
-        if (response.IsSuccessStatusCode) { _modalOCRAberto = false; Cache.Invalidar(); await CarregarTudo(forcarAtualizacao: true); Snackbar.Add("Transação salva! 💸", Severity.Success); }
-        else Snackbar.Add("Erro ao salvar transação OCR.", Severity.Error);
+        if (response.IsSuccessStatusCode)
+        {
+            _modalOCRAberto = false;
+            Cache.Invalidar();
+            await CarregarTudo(forcarAtualizacao: true);
+            Snackbar.Add("Transação salva! 💸", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Erro ao salvar transação OCR.", Severity.Error);
+        }
     }
 }
