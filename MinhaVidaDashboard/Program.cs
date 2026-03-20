@@ -10,19 +10,17 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// Usa URL da API de acordo com o ambiente
+// URL da API de acordo com o ambiente
 var apiUrl = builder.HostEnvironment.IsProduction()
     ? "https://always-together-api.onrender.com/"
-    : "http://127.0.0.1:5163/";
+    : "http://localhost:5163/";
 
+// Named HttpClient — use sempre IHttpClientFactory nos services e páginas
 builder.Services.AddHttpClient("ClientesAPI", client =>
 {
     client.BaseAddress = new Uri(apiUrl);
     client.Timeout = TimeSpan.FromSeconds(15);
 });
-
-builder.Services.AddScoped(sp =>
-    new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
 // Cache singleton — persiste entre navegações de página
 builder.Services.AddSingleton<CacheService>();

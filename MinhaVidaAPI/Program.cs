@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi;
 using MinhaVidaAPI.Data;
 using MinhaVidaAPI.Services;
 using MinhaVidaAPI.Workers;
@@ -27,20 +26,19 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
 builder.Services.Configure<GzipCompressionProviderOptions>(options =>
     options.Level = CompressionLevel.Fastest);
 
-// 3. Injeção de Dependência dos seus Serviços
+// 3. Injeção de Dependência dos Serviços
 builder.Services.AddSingleton<WhatsAppService>();
 builder.Services.AddSingleton<OCRService>();
 builder.Services.AddHostedService<ResumoWorker>();
 
-// 4. Configuração do CORS (Ajustado para o Netlify)
+// 4. CORS — só origens sem barra final
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Livre", policy =>
         policy.WithOrigins(
             "https://localhost:7065",
-            "http://localhost:5000",
-            "https://always-together.netlify.app",    // Sem barra
-            "https://always-together.netlify.app/"    // Com barra final
+            "http://localhost:5163",
+            "https://always-together.netlify.app"
         )
         .AllowAnyMethod()
         .AllowAnyHeader());
@@ -49,8 +47,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// 5. Configuração do Swagger (Mesmo em Produção)
-// No Program.cs da API (Linha 55)
+// 5. Swagger
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "MinhaVida API", Version = "v1" });
@@ -82,18 +79,17 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// 7. Configuração do Pipeline (Middleware)
-// Ativamos o Swagger fora do IF para ele aparecer no Render
+// 7. Pipeline de Middleware — ordem é crítica
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "MinhaVida API v1");
-    c.RoutePrefix = string.Empty; // Isso faz o Swagger ser a página inicial da API
+    c.RoutePrefix = string.Empty; // Swagger como página inicial
 });
 
 app.UseResponseCompression();
 
-// A ordem aqui é CRÍTICA: CORS deve vir antes de Authorization e Controllers
+// CORS obrigatoriamente antes de Authorization e MapControllers
 app.UseCors("Livre");
 
 app.UseAuthorization();
