@@ -44,7 +44,6 @@
             border: 3px solid rgba(255,255,255,0.2);
             box-shadow: 0 8px 32px rgba(0,0,0,0.4);
             margin-bottom: 20px;
-            display: block;
         }
 
         .loading-title {
@@ -80,10 +79,10 @@
             width: 40%;
             background: linear-gradient(90deg, #5C6BC0, #E91E63);
             border-radius: 2px;
-            animation: loading-anim 2s infinite ease-in-out;
+            animation: load-anim 2s infinite ease-in-out;
         }
 
-        @keyframes loading-anim {
+        @keyframes load-anim {
             0% {
                 width: 10%;
             }
@@ -129,15 +128,26 @@
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 
     <script>
+        const statusMessages = ["Carregando...", "Preparando dados...", "Quase lá..."];
+        let msgIndex = 0;
+        const statusEl = document.getElementById('loading-status-text');
+        const msgInterval = setInterval(() => {
+            msgIndex = (msgIndex + 1) % statusMessages.length;
+            if (statusEl) statusEl.textContent = statusMessages[msgIndex];
+        }, 900);
+
         function removerLoadingScreen() {
+            clearInterval(msgInterval);
             const screen = document.getElementById('loading-screen');
             if (screen) {
                 screen.classList.add('fadeout');
-                setTimeout(() => { if (screen.parentNode) screen.parentNode.removeChild(screen); }, 500);
+                setTimeout(() => {
+                    if (screen.parentNode) screen.parentNode.removeChild(screen);
+                }, 500);
             }
         }
 
-        // Monitora quando o Blazor renderiza
+        // Monitora o carregamento real do Blazor
         const appElement = document.getElementById('app');
         const observer = new MutationObserver(() => {
             if (appElement && appElement.children.length > 1) {
@@ -146,9 +156,11 @@
             }
         });
 
-        if (appElement) observer.observe(appElement, { childList: true });
+        if (appElement) {
+            observer.observe(appElement, { childList: true });
+        }
 
-        // Fallback: 20 segundos
+        // Fallback de segurança: 20 segundos
         setTimeout(removerLoadingScreen, 20000);
     </script>
 </body>
