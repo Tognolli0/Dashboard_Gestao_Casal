@@ -30,7 +30,7 @@ builder.Services.AddHostedService<ResumoWorker>();
 
 // 4. CORS
 builder.Services.AddCors(options =>
-{
+{ 
     options.AddPolicy("Livre", policy =>
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
