@@ -129,41 +129,26 @@
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 
     <script>
-        // Mensagens divertidas de carregamento
-        const statusMessages = ["Carregando...", "Preparando dados...", "Quase lá..."];
-        let msgIndex = 0;
-        const statusEl = document.getElementById('loading-status-text');
-        const msgInterval = setInterval(() => {
-            msgIndex = (msgIndex + 1) % statusMessages.length;
-            if (statusEl) statusEl.textContent = statusMessages[msgIndex];
-        }, 900);
-
         function removerLoadingScreen() {
-            clearInterval(msgInterval);
             const screen = document.getElementById('loading-screen');
             if (screen) {
                 screen.classList.add('fadeout');
-                setTimeout(() => {
-                    if (screen.parentNode) screen.parentNode.removeChild(screen);
-                }, 500);
+                setTimeout(() => { if (screen.parentNode) screen.parentNode.removeChild(screen); }, 500);
             }
         }
 
-        // Monitora o carregamento real do Blazor
+        // Monitora quando o Blazor renderiza
         const appElement = document.getElementById('app');
-        const observer = new MutationObserver((mutations) => {
-            // Se o Blazor injetar mais de 1 elemento, ele terminou
+        const observer = new MutationObserver(() => {
             if (appElement && appElement.children.length > 1) {
                 removerLoadingScreen();
                 observer.disconnect();
             }
         });
 
-        if (appElement) {
-            observer.observe(appElement, { childList: true });
-        }
+        if (appElement) observer.observe(appElement, { childList: true });
 
-        // Fallback de segurança: se o Blazor falhar em 20s, remove a tela
+        // Fallback: 20 segundos
         setTimeout(removerLoadingScreen, 20000);
     </script>
 </body>
