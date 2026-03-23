@@ -1,12 +1,5 @@
+# netlify.toml (update the build.command)
 [build]
   base = "MinhaVidaDashboard"
-  
-  # Removido o --no-incremental que estava quebrando o build
-  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o publish"
-  
-  publish = "publish/wwwroot"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet workload install wasm-tools && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o publish"
+  publish = "MinhaVidaDashboard/publish/wwwroot"

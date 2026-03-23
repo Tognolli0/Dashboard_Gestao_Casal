@@ -7,26 +7,23 @@ using System.IO.Compression;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Configuração do Banco de Dados
+// 1. Banco de Dados
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString)
            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
-// 2. Compressão de Resposta (Performance)
+// 2. Compressão
 builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
     options.Providers.Add<BrotliCompressionProvider>();
     options.Providers.Add<GzipCompressionProvider>();
 });
-builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
-    options.Level = CompressionLevel.Fastest);
-builder.Services.Configure<GzipCompressionProviderOptions>(options =>
-    options.Level = CompressionLevel.Fastest);
+builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 
-// 3. Injeção de Dependência dos Serviços
+// 3. Serviços
 builder.Services.AddSingleton<WhatsAppService>();
 builder.Services.AddSingleton<OCRService>();
 builder.Services.AddHostedService<ResumoWorker>();
@@ -35,24 +32,24 @@ builder.Services.AddHostedService<ResumoWorker>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Livre", policy =>
-        policy
-            .AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader());
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader());
 });
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// 5. Swagger
+// 5. Swagger - VERSÃO SEM ERRO DE NAMESPACE
 builder.Services.AddSwaggerGen(c =>
 {
+    // Usamos 'new()' para o C# descobrir o tipo sozinho sem precisar do 'using' no topo
     c.SwaggerDoc("v1", new() { Title = "MinhaVida API", Version = "v1" });
 });
 
 var app = builder.Build();
 
-// 6. Migração/Criação Automática do Banco ao Iniciar
+// 6. Database Check
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -61,23 +58,14 @@ using (var scope = app.Services.CreateScope())
     {
         try
         {
-            Console.WriteLine("Tentando conectar ao banco de dados...");
             db.Database.EnsureCreated();
-            Console.WriteLine("Banco de dados pronto.");
             break;
         }
-        catch (Exception ex)
-        {
-            retries--;
-            Console.WriteLine($"Falha na conexão com o banco. Tentativas restantes: {retries}. Erro: {ex.Message}");
-            if (retries == 0) throw;
-            await Task.Delay(4000);
-        }
+        catch { retries--; await Task.Delay(3000); if (retries == 0) throw; }
     }
 }
 
-// 7. Pipeline de Middleware — ordem crítica
-// CORS deve ser o PRIMEIRO middleware
+// 7. Middlewares
 app.UseCors("Livre");
 
 app.UseSwagger();
@@ -87,9 +75,7 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = string.Empty;
 });
 
-// Compressão DEPOIS do CORS
 app.UseResponseCompression();
-
 app.UseAuthorization();
 app.MapControllers();
 
