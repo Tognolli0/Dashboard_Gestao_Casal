@@ -1,11 +1,12 @@
 [build]
-  # 1. Verifique se o seu .csproj está dentro de MinhaVidaDashboard/
+  # Entra na pasta do projeto
   base = "MinhaVidaDashboard"
   
-  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o publish"
+  # Comando de Build: Publica na pasta 'dist' (evitando o nome 'publish')
+  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o dist"
   
-  # 2. O Netlify deve servir o que foi publicado
-  publish = "publish/wwwroot"
+  # Aponta para onde o index.html e _framework realmente estão
+  publish = "dist/wwwroot"
 
 [[redirects]]
   from = "/*"
