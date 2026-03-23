@@ -1,11 +1,15 @@
 [build]
+  # 1. Dizemos ao Netlify para entrar na pasta onde está o .csproj
   base = "MinhaVidaDashboard"
+  
+  # 2. Comando para instalar o .NET e publicar o projeto na pasta 'publish'
   command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o publish"
   
-  # CORREÇÃO AQUI: Removido o primeiro "MinhaVidaDashboard/"
+  # 3. O SEGREDO: O Netlify deve servir a pasta wwwroot que fica DENTRO da publish
   publish = "publish/wwwroot"
 
 [[redirects]]
+  # Garante que o Blazor controle as rotas sem o Netlify dar erro 404
   from = "/*"
   to = "/index.html"
   status = 200
