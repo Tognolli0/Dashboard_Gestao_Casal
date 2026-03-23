@@ -111,10 +111,26 @@
         <span class="dismiss">X</span>
     </div>
 
-    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="_framework/blazor.webassembly.js" autostart="false"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 
     <script>
+        // --- LOGS DE DEBUG ---
+        console.log("Iniciando processo de boot do Blazor...");
+
+        Blazor.start({
+            loadBootResource: function (type, name, defaultUri, integrity) {
+                console.log(`Carregando recurso: ${name} (${type})`);
+                return defaultUri;
+            }
+        }).then(() => {
+            console.log("Blazor iniciado com sucesso!");
+        }).catch(err => {
+            console.error("ERRO FATAL NO BLAZOR:", err);
+            // Se cair aqui, o erro do '<' vai aparecer detalhado
+        });
+
+        // --- SEU CÓDIGO DA TELA DE LOADING ---
         const statusMessages = ["Carregando...", "Preparando dados...", "Quase lá..."];
         let msgIndex = 0;
         const statusEl = document.getElementById('loading-status-text');
@@ -134,16 +150,24 @@
 
         const observer = new MutationObserver(() => {
             const app = document.getElementById('app');
-            if (app && app.childNodes.length > 1) {
+            // Verifica se o Blazor injetou conteúdo dentro da div app
+            if (app && app.children.length > 1) {
                 removerLoadingScreen();
                 observer.disconnect();
             }
         });
-            
+
         const appEl = document.getElementById('app');
         if (appEl) observer.observe(appEl, { childList: true });
 
-        setTimeout(removerLoadingScreen, 8000);
+        // Segurança para não travar na tela de loading se algo falhar silenciosamente
+        setTimeout(() => {
+            const screen = document.getElementById('loading-screen');
+            if (screen) {
+                console.warn("Remoção forçada da tela de loading por timeout.");
+                removerLoadingScreen();
+            }
+        }, 15000);
     </script>
 </body>
 
