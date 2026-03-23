@@ -1,9 +1,21 @@
 {
-  "cleanUrls": true,
+  "outputDirectory": "wwwroot",
   "rewrites": [
     {
-      "source": "/_framework/:path*",
-      "destination": "/_framework/:path*"
+      "source": "/_framework/(.*)",
+      "destination": "/_framework/$1"
+    },
+    {
+      "source": "/_content/(.*)",
+      "destination": "/_content/$1"
+    },
+    {
+      "source": "/css/(.*)",
+      "destination": "/css/$1"
+    },
+    {
+      "source": "/favicon.png",
+      "destination": "/favicon.png"
     },
     {
       "source": "/(.*)",
