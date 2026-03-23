@@ -6,52 +6,46 @@ using MudBlazor.Services;
 using System.Globalization;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
-
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// 1. Configuração da URL da API (Verifique se o link do Render está EXATAMENTE assim)
-var apiUrl = builder.HostEnvironment.IsProduction()
-    ? "https://always-together-api.onrender.com/"
-    : "http://localhost:5163/";
+// 1. Habilita suporte a injeção de HttpClientFactory (Resolve erro do KeepAlive)
+builder.Services.AddHttpClient();
 
-// 2. Configuração do HttpClient Nomeado "ClientesAPI"
-builder.Services.AddHttpClient("ClientesAPI", client =>
+// 2. Configuração de URL Robusta (Ajustada para as portas do seu launchSettings)
+string baseApiUrl = builder.HostEnvironment.IsProduction()
+    ? "https://always-together-api.onrender.com" // Produção no Render
+    : "http://localhost:5163";                  // Local (Porta do seu launchSettings)
+
+// Limpeza da URL para evitar erros de boot
+string finalUrl = baseApiUrl.Trim().TrimEnd('/') + "/";
+
+// 3. Registro do HttpClient Global
+builder.Services.AddScoped(sp => new HttpClient
 {
-    client.BaseAddress = new Uri(apiUrl);
-    // Aumentado para 60s para dar tempo do Render acordar (Cold Start)
+    BaseAddress = new Uri(finalUrl),
+    Timeout = TimeSpan.FromSeconds(60)
+});
+
+// Registro extra por nome para compatibilidade
+builder.Services.AddHttpClient("ClientesAPI", client => {
+    client.BaseAddress = new Uri(finalUrl);
     client.Timeout = TimeSpan.FromSeconds(60);
 });
 
-// 3. ESSA LINHA RESOLVE O ERRO DE PÁGINA EM BRANCO:
-// Registra o HttpClient padrão que as páginas e serviços injetam, 
-// fazendo-o usar a configuração da "ClientesAPI" (URL do Render).
-builder.Services.AddScoped(sp =>
-    sp.GetRequiredService<IHttpClientFactory>().CreateClient("ClientesAPI"));
-
-// 4. Cache e Keep-alive (Singleton para persistir no App)
+// 4. Serviços e MudBlazor
 builder.Services.AddSingleton<CacheService>();
 builder.Services.AddSingleton<KeepAliveService>();
+builder.Services.AddMudServices();
 
-// 5. Configuração do MudBlazor
-builder.Services.AddMudServices(config =>
-{
-    config.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.BottomRight;
-    config.SnackbarConfiguration.PreventDuplicates = true;
-    config.SnackbarConfiguration.MaxDisplayedSnackbars = 3;
-    config.SnackbarConfiguration.VisibleStateDuration = 3000;
-    config.SnackbarConfiguration.HideTransitionDuration = 300;
-    config.SnackbarConfiguration.ShowTransitionDuration = 200;
-});
-
-// 6. Configuração de Cultura (Brasil)
+// 5. Cultura Brasil
 var culture = new CultureInfo("pt-BR");
 CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
 
 var app = builder.Build();
 
-// 7. Inicia o Keep-alive para tentar manter a API do Render acordada
+// 6. Inicialização de Background
 try
 {
     var keepAlive = app.Services.GetRequiredService<KeepAliveService>();
@@ -59,7 +53,7 @@ try
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"Erro ao iniciar KeepAlive: {ex.Message}");
+    Console.WriteLine($"Erro KeepAlive: {ex.Message}");
 }
 
 await app.RunAsync();

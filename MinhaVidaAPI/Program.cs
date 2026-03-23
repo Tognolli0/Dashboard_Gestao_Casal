@@ -7,13 +7,23 @@ using System.IO.Compression;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Banco de Dados
+// 1. Configuração Híbrida de Banco de Dados
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString)
-           .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
-// 2. Compressão
+if (builder.Environment.IsDevelopment())
+{
+    // Local: Usa o arquivo SQLite que você enviou
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlite(connectionString));
+}
+else
+{
+    // Web (Render): Usa o PostgreSQL do Supabase
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(connectionString));
+}
+
+// 2. Registro da Compressão (Obrigatório para evitar erros de ativação)
 builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
@@ -21,16 +31,15 @@ builder.Services.AddResponseCompression(options =>
     options.Providers.Add<GzipCompressionProvider>();
 });
 builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
-builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 
-// 3. Serviços
+// 3. Serviços de Negócio
 builder.Services.AddSingleton<WhatsAppService>();
 builder.Services.AddSingleton<OCRService>();
 builder.Services.AddHostedService<ResumoWorker>();
 
-// 4. CORS
+// 4. CORS - Configurado para aceitar Localhost e Vercel
 builder.Services.AddCors(options =>
-{ 
+{
     options.AddPolicy("Livre", policy =>
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
@@ -39,43 +48,23 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-
-// 5. Swagger - VERSÃO SEM ERRO DE NAMESPACE
-builder.Services.AddSwaggerGen(c =>
-{
-    // Usamos 'new()' para o C# descobrir o tipo sozinho sem precisar do 'using' no topo
-    c.SwaggerDoc("v1", new() { Title = "MinhaVida API", Version = "v1" });
-});
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// 6. Database Check
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var retries = 5;
-    while (retries > 0)
-    {
-        try
-        {
-            db.Database.EnsureCreated();
-            break;
-        }
-        catch { retries--; await Task.Delay(3000); if (retries == 0) throw; }
-    }
-}
+// --- MIDDLEWARES (A ORDEM É VITAL) ---
 
-// 7. Middlewares
 app.UseCors("Livre");
+app.UseResponseCompression();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "MinhaVida API v1");
-    c.RoutePrefix = string.Empty;
+    // Removido o RoutePrefix vazio para não dar erro de JSON no Blazor
 });
 
-app.UseResponseCompression();
+app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 
