@@ -1,11 +1,12 @@
 [build]
-  # Entra na pasta do projeto
+  # Entra na pasta do projeto Dashboard
   base = "MinhaVidaDashboard"
   
-  # Comando de Build: Publica na pasta 'dist' (evitando o nome 'publish')
+  # Comando de build simplificado
   command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o dist"
   
-  # Aponta para onde o index.html e _framework realmente estão
+  # AQUI ESTÁ O PULO DO GATO:
+  # Garantimos que ele procure o index.html na raiz da pasta dist/wwwroot
   publish = "dist/wwwroot"
 
 [[redirects]]
