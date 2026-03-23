@@ -1,13 +1,11 @@
 [build]
-  # Entra na pasta do projeto Dashboard
   base = "MinhaVidaDashboard"
   
-  # Comando de build simplificado
-  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o dist"
+  # Usaremos a pasta 'meu_deploy' que não existe no .gitignore
+  command = "curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --install-dir .dotnet && ./.dotnet/dotnet publish MinhaVidaDashboard.csproj -c Release -o meu_deploy"
   
-  # AQUI ESTÁ O PULO DO GATO:
-  # Garantimos que ele procure o index.html na raiz da pasta dist/wwwroot
-  publish = "dist/wwwroot"
+  # O Netlify busca o index.html em meu_deploy/wwwroot
+  publish = "meu_deploy/wwwroot"
 
 [[redirects]]
   from = "/*"

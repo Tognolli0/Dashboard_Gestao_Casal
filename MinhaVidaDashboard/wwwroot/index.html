@@ -44,6 +44,8 @@
             border: 3px solid rgba(255,255,255,0.2);
             box-shadow: 0 8px 32px rgba(0,0,0,0.4);
             margin-bottom: 20px;
+            /* Garante que a imagem apareça mesmo se o flexbox falhar */
+            display: block;
         }
 
         .loading-title {
@@ -114,12 +116,12 @@
 
     <script>
         // --- CÓDIGO DE INICIALIZAÇÃO E DEBUG ---
-        console.log("Iniciando auditoria de arquivos...");
+        console.log("%c DEBUG: Iniciando auditoria de boot...", "color: blue; font-weight: bold;");
 
         Blazor.start().then(() => {
-            console.log("Blazor carregado com sucesso!");
+            console.log("%c DEBUG: Blazor carregado com sucesso!", "color: green; font-weight: bold;");
         }).catch(err => {
-            console.error("Erro ao carregar o Blazor. Verifique se o Netlify achou a pasta _framework.", err);
+            console.error("%c DEBUG: Falha fatal no Blazor.start:", "color: red;", err);
         });
 
         // --- SEU SCRIPT DE LOADING ORIGINAL ---
@@ -142,6 +144,7 @@
 
         const observer = new MutationObserver(() => {
             const app = document.getElementById('app');
+            // Verifica se o Blazor injetou conteúdo real (mais de 1 nó de texto)
             if (app && app.children.length > 1) {
                 removerLoadingScreen();
                 observer.disconnect();
